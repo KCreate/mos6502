@@ -1,6 +1,6 @@
 /*
- * This file is part of the Motorola 6502 Emulator
- * (https://github.com/KCreate/motorola-6502)
+ * This file is part of the MOS 6502 Emulator
+ * (https://github.com/KCreate/mos6502)
  *
  * MIT License
  *
