@@ -31,12 +31,6 @@
 
 namespace M6502 {
 
-// General purpose bus
-template <size_t BSIZE>
-class Bus {
-  BSIZE value;
-};
-
 // Virtual CPU for the MOS 6502
 class CPU {
 
@@ -111,10 +105,22 @@ class CPU {
   void mem_write(uint16_t addr, uint8_t value);
   uint8_t mem_read(uint16_t addr);
 
-  // Immediate address mode
-  //
-  // A single byte after the opcode
-  uint16_t addr_imm();
+  // One byte immediate value after the opcode
+  uint16_t addr_immediate();
+
+  // Two byte immediate value after the opcode
+  uint16_t addr_absolute();
+
+  // One byte immediate value after the opcode
+  uint16_t addr_absolute_zero();
+  uint16_t addr_implied();
+  uint16_t addr_accumulator();
+  uint16_t addr_indexed();
+  uint16_t addr_indexed_zero();
+  uint16_t addr_indirect();
+  uint16_t addr_pre_indexed_indirect();
+  uint16_t addr_post_indexed_indirect();
+  uint16_t addr_relative();
 
   // CPU instructions
   void exec();
