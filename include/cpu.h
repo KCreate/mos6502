@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
+#include <functional>  // for std::function
 #include <stdint>
-#include <functional> // for std::function
 
 #pragma once
 
@@ -34,6 +34,19 @@ namespace M6502 {
 
 // Virtual CPU for the MOS 6502
 class CPU {
+
+  // Interrupt vectors
+  //
+  // These addresses contain the value that is loaded into the program counter
+  // when the corresponding interrupt is triggered
+  static constexpr kVecIRQLo = 0xFFFE; // maskable external interrupt
+  static constexpr kVecIRQHi = 0xFFFF;
+  static constexpr kVecBRKLo = 0xFFFE; // maskable software interrupt
+  static constexpr kVecBRKHi = 0xFFFF;
+  static constexpr kVecNMILo = 0xFFFA; // non-maskable hardware interrupt
+  static constexpr kVecNMIHi = 0xFFFB;
+  static constexpr kVecRESLo = 0xFFFC; // reset signal, sent at boot or at runtime
+  static constexpr kVecRESHi = 0xFFFD;
 
   // Accumulator register
   //
@@ -55,7 +68,6 @@ class CPU {
   // Status register
   union {
     struct {
-
       // Sign flag: This is set if the result of an operation is negative,
       // cleared if positive
       bool S : 1;
@@ -138,8 +150,8 @@ class CPU {
   // The bytes at the calculated location contain the address of the operand
   uint16_t addr_pre_indexed_indirect();
 
-  // One byte address whose contents are added to the Y register to form the actual
-  // address at which the operand is stored
+  // One byte address whose contents are added to the Y register to form the
+  // actual address at which the operand is stored
   uint16_t addr_post_indexed_indirect();
 
   // One byte relative offset
@@ -215,7 +227,8 @@ class CPU {
   // |  Absolute      |   ASL Oper            |    0E   |    3    |
   // |  Absolute, X   |   ASL Oper,X          |    1E   |    3    |
   // +----------------+-----------------------+---------+---------+
-  void op_asl(uint16_t src); void op_asl_acc(uint16_t src);
+  void op_asl(uint16_t src);
+  void op_asl_acc(uint16_t src);
 
   // BCC          Branch on carry clear                         BCC
   //
@@ -621,7 +634,8 @@ class CPU {
   // |  Absolute      |   LSR Oper            |    4E   |    3    |
   // |  Absolute,X    |   LSR Oper,X          |    5E   |    3    |
   // +----------------+-----------------------+---------+---------+
-  void op_lsr(uint16_t src); void op_lsr_acc(uint16_t src);
+  void op_lsr(uint16_t src);
+  void op_lsr_acc(uint16_t src);
 
   // NOP          No operation                                  NOP
   //
@@ -719,7 +733,8 @@ class CPU {
   // |  Absolute      |   ROL Oper            |    2E   |    3    |
   // |  Absolute,X    |   ROL Oper,X          |    3E   |    3    |
   // +----------------+-----------------------+---------+---------+
-  void op_rol(uint16_t src); void op_rol_acc(uint16_t src);
+  void op_rol(uint16_t src);
+  void op_rol_acc(uint16_t src);
 
   // ROR          Rotate one bit right (memory or accumulator)  ROR
   //
@@ -738,7 +753,8 @@ class CPU {
   // |  Absolute      |   ROR Oper            |    6E   |    3    |
   // |  Absolute,X    |   ROR Oper,X          |    7E   |    3    |
   // +----------------+-----------------------+---------+---------+
-  void op_ror(uint16_t src); void op_ror_acc(uint16_t src);
+  void op_ror(uint16_t src);
+  void op_ror_acc(uint16_t src);
 
   // RTI          Return from interrupt                         RTI
   //
@@ -949,4 +965,4 @@ class CPU {
   // +----------------+-----------------------+---------+---------+
   void op_wai(uint16_t src);
 };
-} // namespace M6502
+}  // namespace M6502
