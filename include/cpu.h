@@ -816,6 +816,7 @@ class CPU {
   // SEI          Set interrupt disable status                  SEI
   //
   // Operation: 1 -> I                                  N Z C I D V
+  //                                                    _ _ _ 1 _ _
   //
   // +----------------+-----------------------+---------+---------+
   // | Addressing Mode| Assembly Language Form| OP CODE |No. Bytes|
