@@ -26,6 +26,7 @@
  */
 
 #include <stdint>
+#include <functional> // for std::function
 
 #pragma once
 
@@ -36,7 +37,7 @@ class CPU {
 
   // Accumulator register
   //
-  // This is the only register that is able to perform math  operations
+  // This is the only register that is able to perform math operations
   uint8_t A;
 
   // X Index register
@@ -96,14 +97,13 @@ class CPU {
     uint8_t STATUS;
   };
 
-  // 64 kilobytes of memory
+  // Bus write and read
   //
-  // The first 256 bytes (0x00-0xff) contain the hardware stack
-  uint8_t memory[65536];
-
-  // Memory access
-  void mem_write(uint16_t addr, uint8_t value);
-  uint8_t mem_read(uint16_t addr);
+  // Allows the embedded of the CPU to manually map different things into memory
+  using BusRead = std::function<uint8_t(uint16_t)>;
+  using BusWrite = std::function<void(uint16_t, uint8_t)>;
+  BusRead bus_read;
+  BusWrite bus_write;
 
   // One byte immediate value
   uint16_t addr_immediate();
@@ -147,13 +147,7 @@ class CPU {
 
   // CPU instructions
   //
-  // Most instructions operate on memory + accumulator
-  //
-  // Only the following instructions operate solely on the accumulator:
-  // ASL
-  // LSR
-  // ROL
-  // ROR
+  // Documentation was largely copied from: https://nesdev.com/6502.txt
   //
   // The following notation applies to this summary:
   //
@@ -942,5 +936,17 @@ class CPU {
   // |  Implied       |   TYA                 |    98   |    1    |
   // +----------------+-----------------------+---------+---------+
   void op_tya(uint16_t src);
+
+  // WAI          Wait for an interrupt to happen               WAI
+  //
+  // Operation: PC + 1 -> PC, Wait for interrupt        N Z C I D V
+  //                                                    _ _ _ _ _ _
+  //
+  // +----------------+-----------------------+---------+---------+
+  // | Addressing Mode| Assembly Language Form| OP CODE |No. Bytes|
+  // +----------------+-----------------------+---------+---------+
+  // |  Implied       |   WAI                 |    02   |    1    |
+  // +----------------+-----------------------+---------+---------+
+  void op_wai(uint16_t src);
 };
 } // namespace M6502

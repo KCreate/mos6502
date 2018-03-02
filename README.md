@@ -13,7 +13,11 @@ TODO
 
 # Custom modifications
 
-TODO
+Some custom opcodes were added to the CPU. Since the original 6502 didn't use all available opcodes,
+those were used. You can see a list of unused 6502 opcodes [here](http://www.oxyron.de/html/opcodes02.html).
+Instead of halting the CPU, they were assigned the following meanings:
+
+- `0x02 - WAI` Same behaviour as on the WDC 65C02.
 
 # Contributors
 
