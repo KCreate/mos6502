@@ -24,3 +24,36 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+#include <iostream>
+
+#include "cpu.h"
+#include "bus.h"
+
+using namespace M6502;
+
+int main() {
+
+  // Create the machine parts
+  RAMModule<kSizeRAM> ram(kAddrRAM);
+  RAMModule<kSizeAudio> audio(kAddrAudio);
+  RAMModule<kSizeIO> io(kAddrIO);
+  RAMModule<kSizeVideo> video(kAddrVideo);
+  ROMModule<kSizeROM> rom(kAddrROM);
+
+  // Create the bus and attach all the devices
+  Bus bus;
+  bus.attach_ram(&ram);
+  bus.attach_audio(&audio);
+  bus.attach_io(&io);
+  bus.attach_video(&video);
+  bus.attach_rom(&rom);
+
+  rom.get_buffer()[kVecRES - kAddrROM] = 0x00;
+  rom.get_buffer()[kVecRES - kAddrROM + 1] = 0x30;
+
+  CPU cpu(&bus);
+  cpu.dump_state(std::cout);
+
+  return 0;
+}

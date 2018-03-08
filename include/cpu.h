@@ -25,28 +25,50 @@
  * SOFTWARE.
  */
 
-#include <functional>  // for std::function
-#include <stdint>
+#include <cstdint>
+#include <iostream>  // for std::ostream
+
+#include "bus.h"
 
 #pragma once
 
 namespace M6502 {
 
+// Interrupt vectors
+//
+// These addresses contain the value that is loaded into the program counter
+// when the corresponding interrupt is triggered
+//
+// maskable external interrupt
+static constexpr uint16_t kVecIRQ = 0xFFFE;
+
+// maskable software interrupt
+static constexpr uint16_t kVecBRK = 0xFFFE;
+
+// non-maskable hardware interrupt
+static constexpr uint16_t kVecNMI = 0xFFFA;
+
+// reset signal, sent at boot or at runtime
+static constexpr uint16_t kVecRES = 0xFFFC;
+
 // Virtual CPU for the MOS 6502
 class CPU {
+public:
+  CPU(Bus* b) : bus(b) {
+    // Initialize instruction pointer
+    std::cout << "reading pc from reset vector: " << this->bus->read_word(kVecRES) << '\n';
+    this->PC = this->bus->read_word(kVecRES);
+  }
 
-  // Interrupt vectors
-  //
-  // These addresses contain the value that is loaded into the program counter
-  // when the corresponding interrupt is triggered
-  static constexpr kVecIRQLo = 0xFFFE; // maskable external interrupt
-  static constexpr kVecIRQHi = 0xFFFF;
-  static constexpr kVecBRKLo = 0xFFFE; // maskable software interrupt
-  static constexpr kVecBRKHi = 0xFFFF;
-  static constexpr kVecNMILo = 0xFFFA; // non-maskable hardware interrupt
-  static constexpr kVecNMIHi = 0xFFFB;
-  static constexpr kVecRESLo = 0xFFFC; // reset signal, sent at boot or at runtime
-  static constexpr kVecRESHi = 0xFFFD;
+  // Execute a single instruction
+  void cycle();
+
+  // Dump debugging information to a stream
+  void dump_state(std::ostream& out);
+
+private:
+  // Read and write single bytes from the bus
+  Bus* bus;
 
   // Accumulator register
   //
@@ -108,14 +130,6 @@ class CPU {
     };
     uint8_t STATUS;
   };
-
-  // Bus write and read
-  //
-  // Allows the embedded of the CPU to manually map different things into memory
-  using BusRead = std::function<uint8_t(uint16_t)>;
-  using BusWrite = std::function<void(uint16_t, uint8_t)>;
-  BusRead bus_read;
-  BusWrite bus_write;
 
   // One byte immediate value
   uint16_t addr_immediate();

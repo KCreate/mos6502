@@ -25,22 +25,48 @@
  * SOFTWARE.
  */
 
-#include "cpu.h"
+#include "bus.h"
 
 namespace M6502 {
-void CPU::dump_state(std::ostream& out) {
-  out << std::hex;
 
-  out << "6502 Microcontroller at " << this << '\n';
-  out << '\n';
-  out << "Bus: " << this->bus << '\n';
-  out << "Accumulator: " << static_cast<unsigned int>(this->A) << '\n';
-  out << "Index X: " << static_cast<unsigned int>(this->X) << '\n';
-  out << "Index Y: " << static_cast<unsigned int>(this->Y) << '\n';
-  out << "Stack Pointer: " << static_cast<unsigned int>(this->SP) << '\n';
-  out << "Program Counter: " << static_cast<unsigned int>(this->PC) << '\n';
-  out << "Status Register: " << static_cast<unsigned int>(this->STATUS) << '\n';
-
-  out << std::dec;
+uint8_t Bus::read_byte(uint16_t address) {
+  BusDevice* dev = this->resolve_address_to_device(address);
+  if (dev == nullptr)
+    return 0;
+  return dev->read(address - dev->mapped_address);
 }
+
+uint16_t Bus::read_word(uint16_t address) {
+  BusDevice* dev = this->resolve_address_to_device(address);
+  if (dev == nullptr)
+    return 0;
+  uint16_t result;
+  result = dev->read(address - dev->mapped_address);
+  result |= (dev->read(address - dev->mapped_address - 1) << 8);
+  return result;
+}
+
+void Bus::write_byte(uint16_t address, uint8_t value) {
+  BusDevice* dev = this->resolve_address_to_device(address);
+  if (dev == nullptr)
+    return;
+  dev->write(address - dev->mapped_address, value);
+}
+
+void Bus::write_word(uint16_t address, uint16_t value) {
+  BusDevice* dev = this->resolve_address_to_device(address);
+  if (dev == nullptr)
+    return;
+  dev->write(address - dev->mapped_address, value & 0xFF);
+  dev->write(address - dev->mapped_address + 1, (value >> 8) & 0xFF);
+}
+
+BusDevice* Bus::resolve_address_to_device(uint16_t address) {
+  if (address >= kAddrROM) return this->ROM;
+  if (address < kAddrAudio) return this->RAM;
+  if (address >= kAddrVideo) return this->Video;
+  if (address < kAddrIO) return this->Audio;
+  return this->IO;
+}
+
 }  // namespace M6502
