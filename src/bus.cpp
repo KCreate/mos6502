@@ -42,7 +42,7 @@ uint16_t Bus::read_word(uint16_t address) {
     return 0;
   uint16_t result;
   result = dev->read(address - dev->mapped_address);
-  result |= (dev->read(address - dev->mapped_address - 1) << 8);
+  result |= (dev->read(address - dev->mapped_address + 1) << 8);
   return result;
 }
 

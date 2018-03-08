@@ -56,7 +56,6 @@ class CPU {
 public:
   CPU(Bus* b) : bus(b) {
     // Initialize instruction pointer
-    std::cout << "reading pc from reset vector: " << this->bus->read_word(kVecRES) << '\n';
     this->PC = this->bus->read_word(kVecRES);
   }
 
