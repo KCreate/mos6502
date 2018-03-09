@@ -151,7 +151,7 @@ CPU::CPU(Bus* b) : bus(b) {
 
   // 0xA0 - 0xBF
   DEFINE_OPCODE(0xA0, ldy, immediate);
-  DEFINE_OPCODE(0xA1, lda, pre_indirect_addr);
+  DEFINE_OPCODE(0xA1, lda, pre_indexed_indirect);
   DEFINE_OPCODE(0xA2, ldx, immediate);
   DEFINE_OPCODE(0xA4, ldy, absolute_zero);
   DEFINE_OPCODE(0xA5, lda, absolute_zero);
@@ -264,17 +264,17 @@ void CPU::exec_instruction(Instruction) {
 }
 
 uint16_t CPU::addr_immediate() {
-  return pc++;
+  return this->PC++;
 }
 
 uint16_t CPU::addr_absolute() {
-  uint16_t addr = this->pc;
-  this->pc += 2;
+  uint16_t addr = this->PC;
+  this->PC += 2;
   return this->bus->read_byte(this->bus->read_byte(addr));
 }
 
 uint16_t CPU::addr_absolute_zero() {
-  return this->bus->read_byte(this->bus->read_byte(this->pc++));
+  return this->bus->read_byte(this->bus->read_byte(this->PC++));
 }
 
 uint16_t CPU::addr_implied() {
@@ -286,41 +286,41 @@ uint16_t CPU::addr_accumulator() {
 }
 
 uint16_t CPU::addr_x_indexed() {
-  uint16_t addr = this->bus->read_word(this->pc);
-  this->pc += 2;
+  uint16_t addr = this->bus->read_word(this->PC);
+  this->PC += 2;
   return this->bus->read_byte(addr + this->X);
 }
 
 uint16_t CPU::addr_y_indexed() {
-  uint16_t addr = this->bus->read_word(this->pc);
-  this->pc += 2;
+  uint16_t addr = this->bus->read_word(this->PC);
+  this->PC += 2;
   return this->bus->read_byte(addr + this->Y);
 }
 
 uint16_t CPU::addr_x_indexed_zero() {
-  uint8_t addr = this->bus->read_byte(this->pc++);
+  uint8_t addr = this->bus->read_byte(this->PC++);
   return this->bus->read_byte(addr + this->X);
 }
 
 uint16_t CPU::addr_indirect() {
-  uint16_t addr = this->bus->read_word(this->pc++);
+  uint16_t addr = this->bus->read_word(this->PC++);
   return this->bus->read_word(addr);
 }
 
 uint16_t CPU::addr_pre_indexed_indirect() {
-  uint8_t addr = this->bus->read_byte(this->pc++);
+  uint8_t addr = this->bus->read_byte(this->PC++);
   uint16_t pre_indirect_addr = this->bus->read_word(addr + this->X);
   return this->bus->read_byte(pre_indirect_addr);
 }
 
 uint16_t CPU::addr_post_indexed_indirect() {
-  uint8_t addr = this->bus->read_byte(this->pc++);
+  uint8_t addr = this->bus->read_byte(this->PC++);
   uint16_t indirected_addr = this->bus->read_byte(addr) + this->Y;
   return this->bus->read_byte(indirected_addr);
 }
 
 uint16_t CPU::addr_relative() {
-  return this->bus->read_byte(this->pc++);
+  return this->bus->read_byte(this->PC++);
 }
 
 }  // namespace M6502
