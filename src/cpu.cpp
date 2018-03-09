@@ -254,7 +254,7 @@ void CPU::interrupt_reset() {
   this->X = 0x00;
   this->Y = 0x00;
   this->PC = this->bus->read_word(kVecRES);
-  this->SP = 0xFD;
+  this->SP = kStackReset;
   this->STATUS = kMaskConstant;
   this->illegal_opcode = false;
 }
@@ -270,7 +270,7 @@ uint16_t CPU::addr_immediate() {
 uint16_t CPU::addr_absolute() {
   uint16_t addr = this->PC;
   this->PC += 2;
-  return (this->bus->read_byte(addr);
+  return this->bus->read_byte(addr);
 }
 
 uint16_t CPU::addr_absolute_zero() {
@@ -314,7 +314,11 @@ uint16_t CPU::addr_indirect() {
 
 uint16_t CPU::addr_pre_indexed_indirect() {
   uint8_t addr = this->bus->read_byte(this->PC++);
-  return this->bus->read_word(addr + this->X);
+
+  // When adding the 1-byte address and the X-register, wrap around
+  // addition is used - i.e. the sum is always a zero-page address.
+  // e.g: FF + 2 = 0001 not 0101 as you might expect
+  return this->bus->read_word((addr + this->X) & 0xFF);
 }
 
 uint16_t CPU::addr_post_indexed_indirect() {
@@ -322,12 +326,463 @@ uint16_t CPU::addr_post_indexed_indirect() {
   return this->bus->read_byte(addr) + this->Y;
 }
 
+void CPU::stack_push_byte(uint8_t value) {
+  this->bus->write_byte(kStackBase + this->SP, value);
+  if (this->SP == 0x00) {
+    this->SP = kStackReset;
+  } else {
+    this->SP--;
+  }
+}
+
+void CPU::stack_push_word(uint16_t value) {
+  this->stack_push_byte((value >> 8) & 0xFF);
+  this->stack_push_byte(value & 0xFF);
+}
+
+uint8_t CPU::stack_pop_byte() {
+  if (this->SP == 0xFF) {
+    this->SP = 0x00;
+  } else {
+    this->SP++;
+  }
+  return this->bus->read_byte(kStackBase + this->SP);
+}
+
+uint16_t CPU::stack_pop_word() {
+  uint8_t hi = this->stack_pop_byte();
+  uint8_t lo = this->stack_pop_byte();
+  uint16_t result = lo | (hi << 8);
+  return result;
+}
+
 void CPU::op_illegal(uint16_t) {
   this->illegal_opcode = true;
 }
 
 void CPU::op_adc(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  uint16_t tmp = operand + this->A + (this->C ? 1 : 0);
+  this->Z = !(tmp & 0xFF);
 
+  if (this->D) {
+    // TODO: Implement and understand decimal addition
+  } else {
+    this->S = tmp & 0x80;
+    this->V = !((this->A ^ operand) & 0x80) && ((this->A ^ tmp) & 0x80);
+    this->C = tmp > 0xFF;
+  }
+
+  this->A = tmp & 0xFF;
+}
+
+void CPU::op_and(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  uint8_t res = operand & this->A;
+  this->S = res & 0x80;
+  this->Z = !res;
+  this->A = res;
+}
+
+void CPU::op_asl(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  this->C = operand & 0x80;
+  operand <<= 1;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->bus->write_byte(src, operand);
+}
+
+void CPU::op_asl_acc(uint16_t) {
+  uint8_t operand = this->A;
+  this->C = operand & 0x80;
+  operand <<= 1;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->A = operand;
+}
+
+void CPU::op_bcc(uint16_t src) {
+  if (!this->C) {
+    this->PC = src;
+  }
+}
+
+void CPU::op_bcs(uint16_t src) {
+  if (this->C) {
+    this->PC = src;
+  }
+}
+
+void CPU::op_beq(uint16_t src) {
+  if (this->Z) {
+    this->PC = src;
+  }
+}
+
+void CPU::op_bit(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  uint8_t res = operand & this->A;
+  this->S = res & 0x80;
+  this->V = res & 0x40;
+  this->Z = !res;
+}
+
+void CPU::op_bmi(uint16_t src) {
+  if (this->S) {
+    this->PC = src;
+  }
+}
+
+void CPU::op_bne(uint16_t src) {
+  if (!this->Z) {
+    this->PC = src;
+  }
+}
+
+void CPU::op_bpl(uint16_t src) {
+  if (!this->S) {
+    this->PC = src;
+  }
+}
+
+void CPU::op_brk(uint16_t) {
+  this->PC++;
+  this->stack_push_word(this->PC);
+  this->stack_push_byte(this->STATUS | kMaskBreak);
+  this->I = true;
+  this->PC = this->bus->read_word(kVecBRK);
+}
+
+void CPU::op_bvc(uint16_t src) {
+  if (!this->V) {
+    this->PC = src;
+  }
+}
+
+void CPU::op_bvs(uint16_t src) {
+  if (this->V) {
+    this->PC = src;
+  }
+}
+
+void CPU::op_clc(uint16_t) {
+  this->C = false;
+}
+
+void CPU::op_cld(uint16_t) {
+  this->D = false;
+}
+
+void CPU::op_cli(uint16_t) {
+  this->I = false;
+}
+
+void CPU::op_clv(uint16_t) {
+  this->V = false;
+}
+
+void CPU::op_cmp(uint16_t src) {
+  uint16_t result = this->A - this->bus->read_byte(src);
+  this->C = result < 0x100;
+  this->S = result & 0x80;
+  this->Z = !(result & 0xFF);
+}
+
+void CPU::op_cpx(uint16_t src) {
+  uint16_t result = this->X - this->bus->read_byte(src);
+  this->C = result < 0x100;
+  this->S = result & 0x80;
+  this->Z = !(result & 0xFF);
+}
+
+void CPU::op_cpy(uint16_t src) {
+  uint16_t result = this->Y - this->bus->read_byte(src);
+  this->C = result < 0x100;
+  this->S = result & 0x80;
+  this->Z = !(result & 0xFF);
+}
+
+void CPU::op_dec(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  operand = (operand - 1) % 256;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->bus->write_byte(src, operand);
+}
+
+void CPU::op_dex(uint16_t) {
+  uint8_t operand = this->X;
+  operand = (operand - 1) % 256;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->X = operand;
+}
+
+void CPU::op_dey(uint16_t) {
+  uint8_t operand = this->Y;
+  operand = (operand - 1) % 256;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->Y = operand;
+}
+
+void CPU::op_eor(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  operand = this->A ^ operand;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->A = operand;
+}
+
+void CPU::op_inc(uint16_t) {
+  uint8_t operand = this->X;
+  operand = (operand + 1) % 256;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->X = operand;
+}
+
+void CPU::op_inx(uint16_t) {
+  uint8_t operand = this->X;
+  operand = (operand + 1) % 256;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->X = operand;
+}
+
+void CPU::op_iny(uint16_t) {
+  uint8_t operand = this->X;
+  operand = (operand + 1) % 256;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->X = operand;
+}
+
+void CPU::op_jmp(uint16_t src) {
+  this->PC = src;
+}
+
+void CPU::op_jsr(uint16_t src) {
+  this->PC--;
+  this->stack_push_word(this->PC);
+  this->PC = src;
+}
+
+void CPU::op_lda(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->A = operand;
+}
+
+void CPU::op_ldx(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->X = operand;
+}
+
+void CPU::op_ldy(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->Y = operand;
+}
+
+void CPU::op_lsr(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  this->C = operand & 0x1;
+  operand >>= 1;
+  this->S = false;
+  this->Z = !operand;
+  this->bus->write_byte(src, operand);
+}
+
+void CPU::op_lsr_acc(uint16_t) {
+  uint8_t operand = this->A;
+  this->C = operand & 0x1;
+  operand >>= 1;
+  this->S = false;
+  this->Z = !operand;
+  this->A = operand;
+}
+
+void CPU::op_nop(uint16_t) {
+  // do nothing
+}
+
+void CPU::op_ora(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  operand = this->A | operand;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->A = operand;
+}
+
+void CPU::op_pha(uint16_t) {
+  this->stack_push_byte(this->A);
+}
+
+void CPU::op_php(uint16_t) {
+  this->stack_push_byte(this->STATUS | kMaskBreak);
+}
+
+void CPU::op_pla(uint16_t) {
+  this->A = this->stack_pop_byte();
+  this->S = this->A & 0x80;
+  this->Z = !this->A;
+}
+
+void CPU::op_plp(uint16_t) {
+  this->STATUS = this->stack_pop_byte();
+  this->_ = true;
+  this->B = false;
+}
+
+void CPU::op_rol(uint16_t src) {
+  uint16_t operand = this->bus->read_byte(src);
+  operand <<= 1;
+  if (this->C) {
+    operand |= 0x01;
+  }
+  this->C = operand > 0xFF;
+  operand &= 0xFF;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->bus->write_byte(src, operand);
+}
+
+void CPU::op_rol_acc(uint16_t) {
+  uint16_t operand = this->A;
+  operand <<= 1;
+  if (this->C) {
+    operand |= 0x01;
+  }
+  this->C = operand > 0xFF;
+  operand &= 0xFF;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->A = operand;
+}
+
+void CPU::op_ror(uint16_t src) {
+  uint16_t operand = this->bus->read_byte(src);
+  if (this->C) {
+    operand |= 0x100;
+  }
+  this->C = operand & 0x01;
+  operand >>= 1;
+  operand &= 0xFF;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->bus->write_byte(src, operand);
+}
+
+void CPU::op_ror_acc(uint16_t) {
+  uint16_t operand = this->A;
+  if (this->C) {
+    operand |= 0x100;
+  }
+  this->C = operand & 0x01;
+  operand >>= 1;
+  operand &= 0xFF;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->A = operand;
+}
+
+void CPU::op_rti(uint16_t) {
+  this->STATUS = this->stack_pop_byte() | kMaskConstant;
+  this->PC = this->stack_pop_word() + 1;
+}
+
+void CPU::op_rts(uint16_t) {
+  this->PC = this->stack_pop_word() + 1;
+}
+
+void CPU::op_sbc(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
+  uint16_t tmp = this->A - operand - (this->C ? 0 : 1);
+  this->S = tmp & 0x80;
+  this->Z = !(tmp & 0xFF);
+  this->V = ((this->A ^ tmp) & 0x80) && ((this->A ^ operand) & 0x80);
+
+  if (this->D) {
+    // TODO: Implement and understand decimal mode
+  }
+
+  this->C = tmp < 0x100;
+  this->A = tmp & 0xFF;
+}
+
+void CPU::op_sec(uint16_t) {
+  this->C = true;
+}
+
+void CPU::op_sed(uint16_t) {
+  this->D = true;
+}
+
+void CPU::op_sei(uint16_t) {
+  this->I = true;
+}
+
+void CPU::op_sta(uint16_t src) {
+  this->bus->write_byte(src, this->A);
+}
+
+void CPU::op_stx(uint16_t src) {
+  this->bus->write_byte(src, this->X);
+}
+
+void CPU::op_sty(uint16_t src) {
+  this->bus->write_byte(src, this->Y);
+}
+
+void CPU::op_tax(uint16_t) {
+  uint8_t operand = this->A;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->X = operand;
+}
+
+void CPU::op_tay(uint16_t) {
+  uint8_t operand = this->A;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->Y = operand;
+}
+
+void CPU::op_tsx(uint16_t) {
+  uint8_t operand = this->SP;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->X = operand;
+}
+
+void CPU::op_txa(uint16_t) {
+  uint8_t operand = this->X;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->A = operand;
+}
+
+void CPU::op_txs(uint16_t) {
+  this->SP = this->X;
+}
+
+void CPU::op_tya(uint16_t) {
+  uint8_t operand = this->Y;
+  this->S = operand & 0x80;
+  this->Z = !operand;
+  this->A = operand;
+}
+
+void CPU::op_wai(uint16_t) {
+  this->PC++;
+
+  // TODO: Implement this
 }
 
 }  // namespace M6502

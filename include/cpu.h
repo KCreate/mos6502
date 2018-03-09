@@ -61,6 +61,10 @@ static constexpr uint8_t kMaskInterrupt = 0x04;
 static constexpr uint8_t kMaskZero = 0x02;
 static constexpr uint8_t kMaskCarry = 0x01;
 
+// Some constants for stack handling
+static constexpr uint16_t kStackBase = 0x0100;
+static constexpr uint16_t kStackReset = 0xFF;
+
 // Virtual CPU for the MOS 6502
 class CPU {
 public:
@@ -119,43 +123,28 @@ private:
 
   // Status register
   union {
+
+    // Struct bits
+    //
+    // S : Sign flag, Set if the result of an operation is negative
+    // O : Overflow flag, Set when an arithmetic operation overflows
+    // _ : Unused flag, Should always be set to 1
+    // B : Break flag, Set when a software interrupt occurs
+    // D : Decimal flag, Toggles decimal mode (0x00 - 0x99 mapped to 0 - 99)
+    // I : Interrupt flag, Disables interrupts if set
+    // Z : Zero flag, Set if the result of an operation is zero
+    // C : Carry flag, Holds the carry out of the most significant bit in any arithmetic
+    //     operation. In subtraction  however, this flag is cleared if a borrow is
+    //     required and set to  1 if no borrow is required.
+    //     Contains the shifted bit on shift operations
     struct {
-      // Sign flag: This is set if the result of an operation is negative,
-      // cleared if positive
       bool S : 1;
-
-      // Overflow flag: Set when an arithmetic operation produces a result too
-      // large to be represented in a byte
       bool V : 1;
-
-      // This bit is unused
       bool _ : 1;
-
-      // This is set when a software interrupt  is executed.
       bool B : 1;
-
-      // Decimal mode flag
-      //
-      // If set, enables the decimal mode (0x00-0x99 are 0-99)
       bool D : 1;
-
-      // Interrupt flag
-      //
-      // Disables interrupts if the flag is set
       bool I : 1;
-
-      // Zero flag
-      //
-      // Set if the result of an arithmetic or logical operation is zero.
       bool Z : 1;
-
-      // Carry flag
-      //
-      // Holds the carry out of the most significant bit in any arithmetic
-      // operation. In subtraction operations however, this flag is cleared if a
-      // borrow is required and set to 1 if no borrow is required.
-      //
-      // Contains the shifted bit on left and right shift operations
       bool C : 1;
     };
     uint8_t STATUS;
@@ -165,6 +154,12 @@ private:
   // The CPU should just halt when it encounters an illegal
   // instruction
   bool illegal_opcode;
+
+  // Interact with the stack
+  void stack_push_byte(uint8_t value);
+  void stack_push_word(uint16_t value);
+  uint8_t stack_pop_byte();
+  uint16_t stack_pop_word();
 
   // One byte immediate value
   //
