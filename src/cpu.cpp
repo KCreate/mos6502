@@ -59,7 +59,7 @@ CPU::CPU(Bus* b) : bus(b) {
   DEFINE_OPCODE(0x0A, asl, accumulator);
   DEFINE_OPCODE(0x0D, ora, absolute);
   DEFINE_OPCODE(0x0E, asl, absolute);
-  DEFINE_OPCODE(0x10, bpl, relative);
+  DEFINE_OPCODE(0x10, bpl, immediate);
   DEFINE_OPCODE(0x11, ora, post_indexed_indirect);
   DEFINE_OPCODE(0x15, ora, x_indexed_zero);
   DEFINE_OPCODE(0x16, asl, x_indexed_zero);
@@ -80,7 +80,7 @@ CPU::CPU(Bus* b) : bus(b) {
   DEFINE_OPCODE(0x2C, bit, absolute);
   DEFINE_OPCODE(0x2D, and, absolute);
   DEFINE_OPCODE(0x2E, rol, absolute);
-  DEFINE_OPCODE(0x30, bmi, relative);
+  DEFINE_OPCODE(0x30, bmi, immediate);
   DEFINE_OPCODE(0x31, and, post_indexed_indirect);
   DEFINE_OPCODE(0x35, and, x_indexed_zero);
   DEFINE_OPCODE(0x36, rol, x_indexed_zero);
@@ -100,7 +100,7 @@ CPU::CPU(Bus* b) : bus(b) {
   DEFINE_OPCODE(0x4C, jmp, absolute);
   DEFINE_OPCODE(0x4D, eor, absolute);
   DEFINE_OPCODE(0x4E, lsr, absolute);
-  DEFINE_OPCODE(0x50, bvc, relative);
+  DEFINE_OPCODE(0x50, bvc, immediate);
   DEFINE_OPCODE(0x51, eor, post_indexed_indirect);
   DEFINE_OPCODE(0x55, eor, x_indexed_zero);
   DEFINE_OPCODE(0x56, lsr, x_indexed_zero);
@@ -120,7 +120,7 @@ CPU::CPU(Bus* b) : bus(b) {
   DEFINE_OPCODE(0x6C, jmp, indirect);
   DEFINE_OPCODE(0x6D, adc, absolute);
   DEFINE_OPCODE(0x6E, ror, absolute);
-  DEFINE_OPCODE(0x70, bvs, relative);
+  DEFINE_OPCODE(0x70, bvs, immediate);
   DEFINE_OPCODE(0x71, adc, post_indexed_indirect);
   DEFINE_OPCODE(0x75, adc, x_indexed_zero);
   DEFINE_OPCODE(0x76, ror, x_indexed_zero);
@@ -139,7 +139,7 @@ CPU::CPU(Bus* b) : bus(b) {
   DEFINE_OPCODE(0x8C, sty, absolute);
   DEFINE_OPCODE(0x8D, sta, absolute);
   DEFINE_OPCODE(0x8E, stx, absolute);
-  DEFINE_OPCODE(0x90, bcc, relative);
+  DEFINE_OPCODE(0x90, bcc, immediate);
   DEFINE_OPCODE(0x91, sta, post_indexed_indirect);
   DEFINE_OPCODE(0x94, sty, x_indexed_zero);
   DEFINE_OPCODE(0x95, sta, x_indexed_zero);
@@ -162,7 +162,7 @@ CPU::CPU(Bus* b) : bus(b) {
   DEFINE_OPCODE(0xAC, ldy, absolute);
   DEFINE_OPCODE(0xAD, lda, absolute);
   DEFINE_OPCODE(0xAE, ldx, absolute);
-  DEFINE_OPCODE(0xB0, bcs, relative);
+  DEFINE_OPCODE(0xB0, bcs, immediate);
   DEFINE_OPCODE(0xB1, lda, post_indexed_indirect);
   DEFINE_OPCODE(0xB4, ldy, x_indexed_zero);
   DEFINE_OPCODE(0xB5, lda, x_indexed_zero);
@@ -186,7 +186,7 @@ CPU::CPU(Bus* b) : bus(b) {
   DEFINE_OPCODE(0xCC, cpy, absolute);
   DEFINE_OPCODE(0xCD, cmp, absolute);
   DEFINE_OPCODE(0xCE, dec, absolute);
-  DEFINE_OPCODE(0xD0, bne, relative);
+  DEFINE_OPCODE(0xD0, bne, immediate);
   DEFINE_OPCODE(0xD1, cmp, post_indexed_indirect);
   DEFINE_OPCODE(0xD5, cmp, x_indexed_zero);
   DEFINE_OPCODE(0xD6, dec, x_indexed_zero);
@@ -207,7 +207,7 @@ CPU::CPU(Bus* b) : bus(b) {
   DEFINE_OPCODE(0xEC, cpx, absolute);
   DEFINE_OPCODE(0xED, sbc, absolute);
   DEFINE_OPCODE(0xEE, inc, absolute);
-  DEFINE_OPCODE(0xF0, beq, relative);
+  DEFINE_OPCODE(0xF0, beq, immediate);
   DEFINE_OPCODE(0xF1, sbc, post_indexed_indirect);
   DEFINE_OPCODE(0xF5, sbc, x_indexed_zero);
   DEFINE_OPCODE(0xF6, inc, x_indexed_zero);
@@ -270,11 +270,11 @@ uint16_t CPU::addr_immediate() {
 uint16_t CPU::addr_absolute() {
   uint16_t addr = this->PC;
   this->PC += 2;
-  return this->bus->read_byte(this->bus->read_byte(addr));
+  return (this->bus->read_byte(addr);
 }
 
 uint16_t CPU::addr_absolute_zero() {
-  return this->bus->read_byte(this->bus->read_byte(this->PC++));
+  return this->bus->read_byte(this->PC++);
 }
 
 uint16_t CPU::addr_implied() {
@@ -288,18 +288,23 @@ uint16_t CPU::addr_accumulator() {
 uint16_t CPU::addr_x_indexed() {
   uint16_t addr = this->bus->read_word(this->PC);
   this->PC += 2;
-  return this->bus->read_byte(addr + this->X);
+  return addr + this->X;
 }
 
 uint16_t CPU::addr_y_indexed() {
   uint16_t addr = this->bus->read_word(this->PC);
   this->PC += 2;
-  return this->bus->read_byte(addr + this->Y);
+  return addr + this->Y;
 }
 
 uint16_t CPU::addr_x_indexed_zero() {
   uint8_t addr = this->bus->read_byte(this->PC++);
-  return this->bus->read_byte(addr + this->X);
+  return addr + this->X;
+}
+
+uint16_t CPU::addr_y_indexed_zero() {
+  uint8_t addr = this->bus->read_byte(this->PC++);
+  return addr + this->Y;
 }
 
 uint16_t CPU::addr_indirect() {
@@ -309,18 +314,20 @@ uint16_t CPU::addr_indirect() {
 
 uint16_t CPU::addr_pre_indexed_indirect() {
   uint8_t addr = this->bus->read_byte(this->PC++);
-  uint16_t pre_indirect_addr = this->bus->read_word(addr + this->X);
-  return this->bus->read_byte(pre_indirect_addr);
+  return this->bus->read_word(addr + this->X);
 }
 
 uint16_t CPU::addr_post_indexed_indirect() {
   uint8_t addr = this->bus->read_byte(this->PC++);
-  uint16_t indirected_addr = this->bus->read_byte(addr) + this->Y;
-  return this->bus->read_byte(indirected_addr);
+  return this->bus->read_byte(addr) + this->Y;
 }
 
-uint16_t CPU::addr_relative() {
-  return this->bus->read_byte(this->PC++);
+void CPU::op_illegal(uint16_t) {
+  this->illegal_opcode = true;
+}
+
+void CPU::op_adc(uint16_t src) {
+
 }
 
 }  // namespace M6502
