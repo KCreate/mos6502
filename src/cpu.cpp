@@ -72,4 +72,65 @@ void CPU::interrupt_reset() {
 void CPU::exec_instruction(Instruction) {
   std::cout << "executing an instruction" << '\n';
 }
+
+uint16_t CPU::addr_immediate() {
+  return pc++;
+}
+
+uint16_t CPU::addr_absolute() {
+  uint16_t addr = this->pc;
+  this->pc += 2;
+  return this->bus->read_byte(this->bus->read_byte(addr));
+}
+
+uint16_t CPU::addr_absolute_zero() {
+  return this->bus->read_byte(this->bus->read_byte(this->pc++));
+}
+
+uint16_t CPU::addr_implied() {
+  return 0;
+}
+
+uint16_t CPU::addr_accumulator() {
+  return this->A;
+}
+
+uint16_t CPU::addr_x_indexed() {
+  uint16_t addr = this->bus->read_word(this->pc);
+  this->pc += 2;
+  return this->bus->read_byte(addr + this->X);
+}
+
+uint16_t CPU::addr_y_indexed() {
+  uint16_t addr = this->bus->read_word(this->pc);
+  this->pc += 2;
+  return this->bus->read_byte(addr + this->Y);
+}
+
+uint16_t CPU::addr_indexed_zero() {
+  uint8_t addr = this->bus->read_byte(this->pc++);
+  return this->bus->read_byte(addr + this->X);
+}
+
+uint16_t CPU::addr_indirect() {
+  uint16_t addr = this->bus->read_word(this->pc++);
+  return this->bus->read_word(addr);
+}
+
+uint16_t CPU::addr_pre_indexed_indirect() {
+  uint8_t addr = this->bus->read_byte(this->pc++);
+  uint16_t pre_indirect_addr = this->bus->read_word(addr + this->X);
+  return this->bus->read_byte(pre_indirect_addr);
+}
+
+uint16_t CPU::addr_post_indexed_indirect() {
+  uint8_t addr = this->bus->read_byte(this->pc++);
+  uint16_t indirected_addr = this->bus->read_byte(addr) + this->Y;
+  return this->bus->read_byte(indirected_addr);
+}
+
+uint16_t CPU::addr_relative() {
+  return this->bus->read_byte(this->pc++);
+}
+
 }  // namespace M6502

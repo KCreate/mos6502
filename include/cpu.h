@@ -64,9 +64,7 @@ static constexpr uint8_t kMaskCarry = 0x01;
 // Virtual CPU for the MOS 6502
 class CPU {
 public:
-  CPU(Bus* b) : bus(b) {
-    this->PC = this->bus->read_word(kVecRES);
-  }
+  CPU(Bus* b);
 
   // Execute a single instruction
   void cycle();
@@ -169,43 +167,68 @@ private:
   bool illegal_opcode;
 
   // One byte immediate value
+  //
+  // e.g: LDA #$0x0A
   uint16_t addr_immediate();
 
   // Two byte address
+  //
+  // e.g: LDA $31F6
   uint16_t addr_absolute();
 
   // One byte address
+  //
+  // e.g: LDA $20
   uint16_t addr_absolute_zero();
 
   // No data, the operand is implied by the instruction
-  // eg. TAX - (transfer accumulator contents to X-register)
+  // e.g: TAX
   uint16_t addr_implied();
 
   // Operand is stored inside accumulator
+  //
+  // e.g: ASL
+  //      LSR
+  //      ROL
+  //      ROR
   uint16_t addr_accumulator();
 
   // Two byte address which is added to the X
+  //
+  // e.g: LDA $31F6, X
   uint16_t addr_x_indexed();
 
   // Two byte address which is added to the Y register
+  //
+  // e.g: LDA $31F6, Y
   uint16_t addr_y_indexed();
 
   // One byte address which is added to the X register
+  //
+  // e.g: LDA $20, X
   uint16_t addr_indexed_zero();
 
   // Two byte address whose bytes are the new location
   // Note: this addressing modes only applies to the JMP instruction
+  //
+  // e.g: JMP ($215F)
   uint16_t addr_indirect();
 
   // One byte address which is added to the X register
-  // The bytes at the calculated location contain the address of the operand
+  // The bytes at the calculated address are the operand
+  //
+  // e.g: LDA ($3E, X)
   uint16_t addr_pre_indexed_indirect();
 
   // One byte address whose contents are added to the Y register to form the
   // actual address at which the operand is stored
+  //
+  // e.g: LDA ($4C), Y
   uint16_t addr_post_indexed_indirect();
 
   // One byte relative offset
+  //
+  // e.g: BEQ $55
   uint16_t addr_relative();
 
   // CPU instructions
