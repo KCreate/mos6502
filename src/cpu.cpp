@@ -28,6 +28,21 @@
 #include "cpu.h"
 
 namespace M6502 {
+
+void CPU::cycle() {
+  uint8_t opcode;
+  Instruction instruction;
+
+  // Run instructions until we encounter an illegal one
+  // In that case we just return and let the caller
+  // decide what he wants to do
+  while (!this->illegal_opcode) {
+    opcode = this->bus->read_byte(this->PC++);
+    instruction = this->dispatch_table[opcode];
+    this->exec_instruction(instruction);
+  }
+}
+
 void CPU::dump_state(std::ostream& out) {
   out << std::hex;
 
@@ -42,5 +57,19 @@ void CPU::dump_state(std::ostream& out) {
   out << "Status Register: " << static_cast<unsigned int>(this->STATUS) << '\n';
 
   out << std::dec;
+}
+
+void CPU::interrupt_reset() {
+  this->A = 0x00;
+  this->X = 0x00;
+  this->Y = 0x00;
+  this->PC = this->bus->read_word(kVecRES);
+  this->SP = 0xFD;
+  this->STATUS = kMaskConstant;
+  this->illegal_opcode = false;
+}
+
+void CPU::exec_instruction(Instruction) {
+  std::cout << "executing an instruction" << '\n';
 }
 }  // namespace M6502

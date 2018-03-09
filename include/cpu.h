@@ -51,11 +51,20 @@ static constexpr uint16_t kVecNMI = 0xFFFA;
 // reset signal, sent at boot or at runtime
 static constexpr uint16_t kVecRES = 0xFFFC;
 
+// Masks for the STATUS register
+static constexpr uint8_t kMaskSign = 0x80;
+static constexpr uint8_t kMaskOverflow = 0x40;
+static constexpr uint8_t kMaskConstant = 0x20;
+static constexpr uint8_t kMaskBreak = 0x10;
+static constexpr uint8_t kMaskDecimal = 0x08;
+static constexpr uint8_t kMaskInterrupt = 0x04;
+static constexpr uint8_t kMaskZero = 0x02;
+static constexpr uint8_t kMaskCarry = 0x01;
+
 // Virtual CPU for the MOS 6502
 class CPU {
 public:
   CPU(Bus* b) : bus(b) {
-    // Initialize instruction pointer
     this->PC = this->bus->read_word(kVecRES);
   }
 
@@ -65,7 +74,31 @@ public:
   // Dump debugging information to a stream
   void dump_state(std::ostream& out);
 
+  // Reset interrupt
+  //
+  // TODO: Make this thread safe
+  void interrupt_reset();
+
 private:
+  // A single CPU instruction
+  //
+  // Contains function pointers to the address mode
+  // and instruction implementation
+  typedef void (CPU::*CodeExec)(uint16_t);
+  typedef uint16_t (CPU::*AddrExec)();
+  struct Instruction {
+    AddrExec addr;
+    CodeExec code;
+  };
+
+  // Dipsatch table indexed by instruction opcode
+  //
+  // This table is populated at CPU construction
+  Instruction dispatch_table[256];
+
+  // Executes a single instruction
+  void exec_instruction(Instruction instruction);
+
   // Read and write single bytes from the bus
   Bus* bus;
 
@@ -130,6 +163,11 @@ private:
     uint8_t STATUS;
   };
 
+  // Stores wether the last instruction was an illegal one
+  // The CPU should just halt when it encounters an illegal
+  // instruction
+  bool illegal_opcode;
+
   // One byte immediate value
   uint16_t addr_immediate();
 
@@ -187,6 +225,10 @@ private:
   // &       Logical AND                  PCL     Program Counter Low
   // -       Subtract                     OPER    OPERAND
   // #       IMMEDIATE ADDRESSING MODE
+  //
+
+  // Handles illegal opcodes
+  void op_illegal(uint16_t src);
 
   // ADC          Add memory to accumulator with carry          ADC
   //
