@@ -206,7 +206,12 @@ private:
   // One byte address which is added to the X register
   //
   // e.g: LDA $20, X
-  uint16_t addr_indexed_zero();
+  uint16_t addr_x_indexed_zero();
+
+  // One byte address which is added to the Y register
+  //
+  // e.g: STX $20, Y
+  uint16_t addr_y_indexed_zero();
 
   // Two byte address whose bytes are the new location
   // Note: this addressing modes only applies to the JMP instruction
@@ -287,7 +292,7 @@ private:
   // |  Absolute,X    |   AND Oper,X          |    3D   |    3    |
   // |  Absolute,Y    |   AND Oper,Y          |    39   |    3    |
   // |  (Indirect,X)  |   AND (Oper,X)        |    21   |    2    |
-  // |  (Indirect,Y)  |   AND (Oper),Y        |    31   |    2    |
+  // |  (Indirect),Y  |   AND (Oper),Y        |    31   |    2    |
   // +----------------+-----------------------+---------+---------+
   void op_and(uint16_t src);
 
