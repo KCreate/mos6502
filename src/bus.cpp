@@ -62,10 +62,8 @@ void Bus::write_word(uint16_t address, uint16_t value) {
 }
 
 BusDevice* Bus::resolve_address_to_device(uint16_t address) {
+  if (address < kAddrIO) return this->RAM;
   if (address >= kAddrROM) return this->ROM;
-  if (address < kAddrAudio) return this->RAM;
-  if (address >= kAddrVideo) return this->Video;
-  if (address < kAddrIO) return this->Audio;
   return this->IO;
 }
 

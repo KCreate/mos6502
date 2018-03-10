@@ -27,57 +27,28 @@
 
 #include <cstdint>
 
-#include "busdevice.h"
-
 #pragma once
 
 namespace M6502 {
 
-// Addresses on the bus of the attached devices
-static constexpr uint16_t kAddrRAM = 0x0000;
-static constexpr uint16_t kAddrIO = 0x4000;
-static constexpr uint16_t kAddrROM = 0x480C;
-
-// Sizes of different attached devices
-static constexpr size_t kSizeRAM = 0x4000;
-static constexpr size_t kSizeIO = 0x80C;
-static constexpr size_t kSizeROM = 0xB7F4;
-
-// Abstraction of a bus attached to the 6502 micrcontroller
-//
-// Right now the bus is only able to subdivide it's memory into 16kb parts.
-// These can be assigned to different devices
-class Bus {
+// Regular read/write memory of a given size
+template <size_t C>
+class RAMModule : public BusDevice {
 public:
-  Bus() {
+  RAMModule(uint16_t maddr) : BusDevice(maddr) {
+    std::memset(this->buffer, 0xFF, C);
   }
 
-  // Read access
-  uint8_t read_byte(uint16_t address);
-  uint16_t read_word(uint16_t address);
-
-  // Write access
-  void write_byte(uint16_t address, uint8_t value);
-  void write_word(uint16_t address, uint16_t value);
-
-  // Return the device which handles a given address
-  BusDevice* resolve_address_to_device(uint16_t address);
-
-  // Attach devices to the different parts of the bus
-  inline void attach_ram(BusDevice* dev) {
-    this->RAM = dev;
+  uint8_t read(uint16_t address) {
+    return this->buffer[address];
   }
-  inline void attach_io(BusDevice* dev) {
-    this->IO = dev;
-  }
-  inline void attach_rom(BusDevice* dev) {
-    this->ROM = dev;
+
+  void write(uint16_t address, uint8_t value) {
+    this->buffer[address] = value;
   }
 
 private:
-  // Attached devices
-  BusDevice* RAM = nullptr;
-  BusDevice* IO = nullptr;
-  BusDevice* ROM = nullptr;
+  uint8_t buffer[C];
+  size_t capacity = C;
 };
 }  // namespace M6502

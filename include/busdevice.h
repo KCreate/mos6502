@@ -27,6 +27,7 @@
 
 #include <cstdint>
 #include <functional>  // for std::function
+#include <iostream>
 
 #pragma once
 
@@ -39,11 +40,7 @@ using BusWrite = std::function<void(uint16_t, uint8_t)>;
 class BusDevice {
 public:
   BusDevice(uint16_t maddr) : mapped_address(maddr) {
-    this->init();
   }
-
-  // Initialization code
-  virtual void init(){};
 
   // Read and write access to the device
   virtual uint8_t read(uint16_t address) = 0;
@@ -59,6 +56,7 @@ public:
   using BusDevice::BusDevice;
 
   inline void write(uint16_t, uint8_t) {
+    // do nothing
   }
 };
 
@@ -71,62 +69,4 @@ public:
     return 0;
   }
 };
-
-// Regular read/write memory of a given size
-template <size_t C>
-class RAMModule : public BusDevice {
-public:
-  using BusDevice::BusDevice;
-
-  void init() {
-    std::memset(this->buffer, 0, C);
-  }
-  uint8_t read(uint16_t address) {
-    return this->buffer[address];
-  }
-  void write(uint16_t address, uint8_t value) {
-    this->buffer[address] = value;
-  }
-
-private:
-  uint8_t buffer[C];
-  size_t capacity = C;
-};
-
-// Regular readonly memory of a given size
-template <size_t C>
-class ROMModule : public ReadOnlyDevice {
-public:
-  using ReadOnlyDevice::ReadOnlyDevice;
-
-  void init() {
-    std::memset(this->buffer, 0, C);
-  }
-  uint8_t read(uint16_t address) {
-    return this->buffer[address];
-  }
-  inline uint8_t* get_buffer() {
-    return this->buffer;
-  }
-
-private:
-  uint8_t buffer[C];
-  size_t capacity = C;
-};
-
-// The audio chip, able to produce sound
-//
-// TODO: Implement!
-class AudioChip : public WriteOnlyDevice {};
-
-// The video chip, able to show an image
-//
-// TODO: Implement!
-class VideoChip : public WriteOnlyDevice {};
-
-// The IO chip, stores keypresses or mouse status
-//
-// TODO: Implement!
-class IOChip : public ReadOnlyDevice {};
-
 }  // namespace M6502
