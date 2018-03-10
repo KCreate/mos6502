@@ -66,12 +66,15 @@ public:
   // Attach devices to the different parts of the bus
   inline void attach_ram(BusDevice* dev) {
     this->RAM = dev;
+    dev->bus = this;
   }
   inline void attach_io(BusDevice* dev) {
     this->IO = dev;
+    dev->bus = this;
   }
   inline void attach_rom(BusDevice* dev) {
     this->ROM = dev;
+    dev->bus = this;
   }
 
 private:

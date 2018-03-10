@@ -36,6 +36,8 @@ namespace M6502 {
 using BusRead = std::function<uint8_t(uint16_t)>;
 using BusWrite = std::function<void(uint16_t, uint8_t)>;
 
+class Bus; // forward declaration
+
 // Abstraction of a device attached to the bus
 class BusDevice {
 public:
@@ -48,6 +50,7 @@ public:
 
   // The address at which this device was mapped into memory
   uint16_t mapped_address;
+  Bus* bus;
 };
 
 // A device which can only be read from
