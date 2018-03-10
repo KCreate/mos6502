@@ -147,7 +147,7 @@ CPU::CPU(Bus* b) : bus(b) {
   DEFINE_OPCODE(0x98, tya, implied);
   DEFINE_OPCODE(0x99, sta, y_indexed);
   DEFINE_OPCODE(0x9A, txs, implied);
-  DEFINE_OPCODE(0x90, sta, x_indexed);
+  DEFINE_OPCODE(0x9D, sta, x_indexed);
 
   // 0xA0 - 0xBF
   DEFINE_OPCODE(0xA0, ldy, immediate);
@@ -219,18 +219,19 @@ CPU::CPU(Bus* b) : bus(b) {
   this->interrupt_reset();
 }
 
-void CPU::cycle() {
-  uint8_t opcode;
-  Instruction instruction;
-
+void CPU::start() {
   // Run instructions until we encounter an illegal one
   // In that case we just return and let the caller
   // decide what he wants to do
   while (!this->illegal_opcode) {
-    opcode = this->bus->read_byte(this->PC++);
-    instruction = this->dispatch_table[opcode];
-    this->exec_instruction(instruction);
+    this->cycle();
   }
+}
+
+void CPU::cycle() {
+  uint8_t opcode = this->bus->read_byte(this->PC++);
+  Instruction instruction = this->dispatch_table[opcode];
+  this->exec_instruction(instruction);
 }
 
 void CPU::dump_state(std::ostream& out) {
@@ -259,8 +260,9 @@ void CPU::interrupt_reset() {
   this->illegal_opcode = false;
 }
 
-void CPU::exec_instruction(Instruction) {
-  std::cout << "executing an instruction" << '\n';
+void CPU::exec_instruction(Instruction instruction) {
+  uint16_t src = (this->*instruction.addr)();
+  (this->*instruction.code)(src);
 }
 
 uint16_t CPU::addr_immediate() {
@@ -270,7 +272,7 @@ uint16_t CPU::addr_immediate() {
 uint16_t CPU::addr_absolute() {
   uint16_t addr = this->PC;
   this->PC += 2;
-  return this->bus->read_byte(addr);
+  return this->bus->read_word(addr);
 }
 
 uint16_t CPU::addr_absolute_zero() {
@@ -404,19 +406,19 @@ void CPU::op_asl_acc(uint16_t) {
 
 void CPU::op_bcc(uint16_t src) {
   if (!this->C) {
-    this->PC = src;
+    this->PC += this->bus->read_byte(src);
   }
 }
 
 void CPU::op_bcs(uint16_t src) {
   if (this->C) {
-    this->PC = src;
+    this->PC += this->bus->read_byte(src);
   }
 }
 
 void CPU::op_beq(uint16_t src) {
   if (this->Z) {
-    this->PC = src;
+    this->PC += this->bus->read_byte(src);
   }
 }
 
@@ -430,19 +432,19 @@ void CPU::op_bit(uint16_t src) {
 
 void CPU::op_bmi(uint16_t src) {
   if (this->S) {
-    this->PC = src;
+    this->PC += this->bus->read_byte(src);
   }
 }
 
 void CPU::op_bne(uint16_t src) {
   if (!this->Z) {
-    this->PC = src;
+    this->PC += this->bus->read_byte(src);
   }
 }
 
 void CPU::op_bpl(uint16_t src) {
   if (!this->S) {
-    this->PC = src;
+    this->PC += this->bus->read_byte(src);
   }
 }
 
@@ -456,13 +458,13 @@ void CPU::op_brk(uint16_t) {
 
 void CPU::op_bvc(uint16_t src) {
   if (!this->V) {
-    this->PC = src;
+    this->PC += this->bus->read_byte(src);
   }
 }
 
 void CPU::op_bvs(uint16_t src) {
   if (this->V) {
-    this->PC = src;
+    this->PC += this->bus->read_byte(src);
   }
 }
 
@@ -564,8 +566,7 @@ void CPU::op_jmp(uint16_t src) {
 }
 
 void CPU::op_jsr(uint16_t src) {
-  this->PC--;
-  this->stack_push_word(this->PC);
+  this->stack_push_word(this->PC - 1);
   this->PC = src;
 }
 

@@ -70,6 +70,9 @@ class CPU {
 public:
   CPU(Bus* b);
 
+  // Begin executing
+  void start();
+
   // Execute a single instruction
   void cycle();
 
@@ -138,14 +141,14 @@ private:
     //     required and set to  1 if no borrow is required.
     //     Contains the shifted bit on shift operations
     struct {
-      bool S : 1;
-      bool V : 1;
-      bool _ : 1;
-      bool B : 1;
-      bool D : 1;
-      bool I : 1;
-      bool Z : 1;
       bool C : 1;
+      bool Z : 1;
+      bool I : 1;
+      bool D : 1;
+      bool B : 1;
+      bool _ : 1;
+      bool V : 1;
+      bool S : 1;
     };
     uint8_t STATUS;
   };
@@ -505,7 +508,7 @@ private:
   // +----------------+-----------------------+---------+---------+
   // | Addressing Mode| Assembly Language Form| OP CODE |No. Bytes|
   // +----------------+-----------------------+---------+---------+
-  // |  Immediate     |   CPX *Oper           |    E0   |    2    |
+  // |  Immediate     |   CPX #Oper           |    E0   |    2    |
   // |  Zero Page     |   CPX Oper            |    E4   |    2    |
   // |  Absolute      |   CPX Oper            |    EC   |    3    |
   // +----------------+-----------------------+---------+---------+
@@ -519,7 +522,7 @@ private:
   // +----------------+-----------------------+---------+---------+
   // | Addressing Mode| Assembly Language Form| OP CODE |No. Bytes|
   // +----------------+-----------------------+---------+---------+
-  // |  Immediate     |   CPY *Oper           |    C0   |    2    |
+  // |  Immediate     |   CPY #Oper           |    C0   |    2    |
   // |  Zero Page     |   CPY Oper            |    C4   |    2    |
   // |  Absolute      |   CPY Oper            |    CC   |    3    |
   // +----------------+-----------------------+---------+---------+
@@ -923,8 +926,8 @@ private:
   // +----------------+-----------------------+---------+---------+
   // |  Zero Page     |   STA Oper            |    85   |    2    |
   // |  Zero Page,X   |   STA Oper,X          |    95   |    2    |
-  // |  Absolute      |   STA Oper            |    80   |    3    |
-  // |  Absolute,X    |   STA Oper,X          |    90   |    3    |
+  // |  Absolute      |   STA Oper            |    8D   |    3    |
+  // |  Absolute,X    |   STA Oper,X          |    9D   |    3    |
   // |  Absolute,Y    |   STA Oper, Y         |    99   |    3    |
   // |  (Indirect,X)  |   STA (Oper,X)        |    81   |    2    |
   // |  (Indirect),Y  |   STA (Oper),Y        |    91   |    2    |
