@@ -13,7 +13,7 @@ const unsigned AMPLITUDE = 30000;
 const double TWO_PI = 6.28318;
 const double increment = 440.0 / 44100;
 
-std::atomic<uint8_t> audio_channel_1 = 0x80;
+std::atomic<uint8_t> audio_channel_1 = 0;
 
 void sound_handler() {
   // The container of our raw data
@@ -36,15 +36,10 @@ void sound_handler() {
   Sound.setLoop(true);
   Sound.setPitch(audio_channel_1);
   Sound.play();
+
   while (1) {
     sf::sleep(sf::milliseconds(10));
-    Sound.setPitch((static_cast<float>(audio_channel_1 & 0x1f) / 31) * 2 + 1);
-
-    if ((audio_channel_1 & 0x80) == 0x00) {
-      Sound.setVolume(0);
-    } else {
-      Sound.setVolume(100);
-    }
+    Sound.setPitch(static_cast<float>(audio_channel_1) / 16 * 2 + 0.2);
   }
 }
 
@@ -53,16 +48,9 @@ int main() {
 
   std::thread audio_thread(sound_handler);
 
-  bool ascending = false;
   while (true) {
-    std::this_thread::sleep_for(0.01s);
-
-    if ((audio_channel_1 & 0x1F) == 31 || (audio_channel_1 & 0x1F) == 0) {
-      ascending = !ascending;
-    }
-
-    audio_channel_1 = ((audio_channel_1 & 0x1F) + (ascending ? 1 : -1)) & 0x1F;
-    audio_channel_1 = audio_channel_1 | 0x80;
+    std::this_thread::sleep_for(0.1s);
+    audio_channel_1 = (audio_channel_1 + 1) & 0x0F;
   }
 
   audio_thread.join();

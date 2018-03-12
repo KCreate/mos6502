@@ -36,12 +36,12 @@ namespace M6502 {
 // Addresses on the bus of the attached devices
 static constexpr uint16_t kAddrRAM = 0x0000;
 static constexpr uint16_t kAddrIO = 0x4000;
-static constexpr uint16_t kAddrROM = 0x480C;
+static constexpr uint16_t kAddrROM = 0x4910;
 
 // Sizes of different attached devices
 static constexpr size_t kSizeRAM = 0x4000;
-static constexpr size_t kSizeIO = 0x80C;
-static constexpr size_t kSizeROM = 0xB7F4;
+static constexpr size_t kSizeIO = 0x910;
+static constexpr size_t kSizeROM = 0xB6F0;
 
 // Abstraction of a bus attached to the 6502 micrcontroller
 //

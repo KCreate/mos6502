@@ -25,50 +25,16 @@
  * SOFTWARE.
  */
 
-#include <chrono>
-
 #include "iochip.h"
 
 namespace M6502 {
 
 IOChip::IOChip(uint16_t maddr) : BusDevice(maddr) {
-  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-    std::cout << "SDL_Init Error: " << SDL_GetError() << std::endl;
-    std::cout << "Disabling video subsystem" << std::endl;
-    return;
-  }
 
-  this->window = SDL_CreateWindow("6502 Microcontroller", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                    kVideoWidthPixels, kVideoHeightPixels, SDL_WINDOW_SHOWN);
-
-  if (this->window == nullptr) {
-    std::cout << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
-    std::cout << "Disabling video subsystem" << std::endl;
-    return;
-  }
-
-  this->renderer = SDL_CreateRenderer(this->window, -1, 0);
-
-  if (this->renderer == nullptr) {
-    SDL_DestroyWindow(this->window);
-    std::cout << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
-    std::cout << "Disabling video subsystem" << std::endl;
-    return;
-  }
-
-  this->init_screen();
 }
 
 IOChip::~IOChip() {
-  SDL_DestroyWindow(this->window);
-  SDL_DestroyRenderer(this->renderer);
-  SDL_Quit();
-}
 
-void IOChip::init_screen() {
-  SDL_Surface* surface = SDL_GetWindowSurface(this->window);
-  SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 0, 0, 0));
-  SDL_UpdateWindowSurface(this->window);
 }
 
 void IOChip::write(uint16_t address, uint8_t value) {
