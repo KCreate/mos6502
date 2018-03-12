@@ -27,7 +27,7 @@ CFLAGSPROD := -std=$(CPPSTD) \
 							-ferror-limit=1 \
 							-flto \
 							-ffast-math
-LFLAGS := -lm -framework SDL2
+LFLAGS := -lm -framework sfml-window -framework sfml-audio -framework sfml-graphics
 INC := -I libs -I $(INCLUDEDIR)
 LIB := -lstdc++
 
