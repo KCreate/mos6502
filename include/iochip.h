@@ -27,8 +27,6 @@
 
 #include <cstdint>
 
-#include <SFML/Windows.hpp>
-
 #include "busdevice.h"
 
 #pragma once
@@ -45,9 +43,8 @@ namespace M6502 {
 //   display 256 different colors. Depending on the color encoding choosen, slightly different colors might be
 //   reachable in each mode. The color encodings are specified as follows:
 //
-//   - Bit: 7 6 5 4 3 2 1 0
-//   - RGB: R R R G G G B B
-//   - HSL: H H H H S S L L
+//   RGB-Pixel: rrrgggbb
+//   HSL-Pixel: hhhhssll
 //
 //   The background and foreground color configuration bytes have no effect in this mode and are ignored.
 //
@@ -57,6 +54,12 @@ namespace M6502 {
 //   rendered with the background and foreground colors swapped. Background and foreground colors of the display
 //   can be configured at their respective control ports. The color encodings of these values are defined via the
 //   respective flag in the control byte of the IO chip.
+//
+//   Character: 0 0000000
+//              ^ ^
+//              | |
+//              | +- ANSCII Character code
+//              +--- Swap background and foreground color
 //
 // Keyboard & Mouse access:
 //   The IOChip listens for keyboard and mouse events. These events are passed to the CPU via the interrupt mechanism.
@@ -141,17 +144,17 @@ static constexpr uint8_t kIOEventClock4 = 0x08;
 
 // Misc. IO control flags
 //
-// IO + 0x800: 00000000
-//             ^^^^^^^^
-//             ||||||||
-//             |||||||+- Reserved for future expansion
-//             ||||||+-- Enable / Disable the mouse
-//             |||||+--- Enable / Disable the keyboard
-//             ||||+---- RGB / HSL color space
-//             |||+----- Landscape / Portrait layout
-//             ||+------ Fullscreen or floating window
-//             |+------- Show or hide the window
-//             +-------- Graphics or text mode
+// IO + 0x800: 0 0 0 0 0 0 0 0
+//             ^ ^ ^ ^ ^ ^ ^ ^
+//             | | | | | | | |
+//             | | | | | | | +- Reserved for future expansion
+//             | | | | | | +--- Enable / Disable the mouse
+//             | | | | | +----- Enable / Disable the keyboard
+//             | | | | +------- RGB / HSL color space
+//             | | | +--------- Landscape / Portrait layout
+//             | | +----------- Fullscreen or floating window
+//             | +------------- Show or hide the window
+//             +--------------- Graphics or text mode
 static constexpr uint8_t kIOControlMode = 0x80;
 static constexpr uint8_t kIOControlVisibility = 0x40;
 static constexpr uint8_t kIOControlFullscreen = 0x20;
@@ -159,6 +162,33 @@ static constexpr uint8_t kIOControlOrientation = 0x10;
 static constexpr uint8_t kIOControlColorMode = 0x08;
 static constexpr uint8_t kIOControlKeyboardEnabled = 0x04;
 static constexpr uint8_t kIOControlMouseEnabled = 0x02;
+
+// 1 byte color value, encoding either an RGB or HSL value
+struct ColorValue {
+  uint8_t value;
+
+  ColorValue(uint8_t v) : value(v) {
+  }
+
+  inline uint8_t get_rgb_r() {
+    return (this->value | kIOVideoRedMask) >> 5;
+  }
+  inline uint8_t get_rgb_g() {
+    return (this->value | kIOVideoGreenMask) >> 2;
+  }
+  inline uint8_t get_rgb_b() {
+    return this->value | kIOVideoBlueMask;
+  }
+  inline uint8_t get_hsl_h() {
+    return (this->value | kIOVideoHueMask) >> 4;
+  }
+  inline uint8_t get_hsl_s() {
+    return (this->value | kIOVideoSaturationMask) >> 2;
+  }
+  inline uint8_t get_hsl_l() {
+    return this->value | kIOVideoLightnessMask;
+  }
+};
 
 class IOChip : public BusDevice {
 public:
@@ -171,16 +201,34 @@ public:
 private:
   // Memory buffer of the IO chip
   union {
-    uint8_t buffer[0x80C];
+    uint8_t buffer[0x80C] = {0};
     struct {
       // Display memory buffer
       uint8_t vram[0x800];
 
-      // Audio channels
-      uint8_t audio_1;
-      uint8_t audio_2;
-      uint8_t audio_3;
-      uint8_t audio_4;
+      uint8_t control;
+      ColorValue background_color;
+      ColorValue foreground_color;
+      uint8_t event_type;
+      union {
+        struct {
+          uint8_t keycode;
+        } keyboard;
+        struct {
+          uint8_t x;
+          uint8_t y;
+        } mouse;
+      };
+      uint8_t clock1;
+      uint8_t clock2;
+      uint8_t clock3;
+      uint8_t clock4;
+      uint8_t audio_channel1;
+      uint8_t audio_channel2;
+      uint8_t audio_channel3;
+      uint8_t audio_channel4;
+      uint8_t reserved1;
+      uint8_t reserved2;
     };
   };
 };

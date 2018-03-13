@@ -25,6 +25,8 @@
  * SOFTWARE.
  */
 
+#include <SFML/Window.hpp>
+
 #include "iochip.h"
 
 namespace M6502 {
