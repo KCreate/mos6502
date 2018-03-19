@@ -75,15 +75,18 @@ static constexpr size_t kIOVideoLightnessMask = 0x03;
 
 // Control ports
 //
-// The IO chip provides several addresses, which when written to, perform various actions
-// inside the chip. The keyboard and mouse interrupts share some memory to store their payload in.
-static constexpr uint16_t kIOControl = 0x800;
-static constexpr uint16_t kIOTextModeBackgroundColor = 0x801;
-static constexpr uint16_t kIOTextModeForegroundColor = 0x802;
-static constexpr uint16_t kIOEventType = 0x803;
-static constexpr uint16_t kIOKeyboardKeycode = 0x804;
-static constexpr uint16_t kIOMouseXCoord = 0x804;
-static constexpr uint16_t kIOMouseYCoord = 0x805;
+// These are the most important interfaces to the IO chip.
+static constexpr uint16_t kIOControl = 0x900;
+static constexpr uint16_t kIOTextModeBackgroundColor = 0x901;
+static constexpr uint16_t kIOTextModeForegroundColor = 0x902;
+
+// Event payload data
+//
+// Interrupts store their payload in these memory locations
+static constexpr uint16_t kIOEventType = 0x903;
+static constexpr uint16_t kIOKeyboardKeycode = 0x904;
+static constexpr uint16_t kIOMouseXCoord = 0x904;
+static constexpr uint16_t kIOMouseYCoord = 0x905;
 
 // Hardware clocks
 //
@@ -101,10 +104,8 @@ static constexpr uint16_t kIOMouseYCoord = 0x805;
 //        | |
 //        | +- Fraction or amount of seconds
 //        +--- Toggle between fraction or seconds
-static constexpr uint16_t kIOClock1 = 0x806;
-static constexpr uint16_t kIOClock2 = 0x807;
-static constexpr uint16_t kIOClock3 = 0x808;
-static constexpr uint16_t kIOClock4 = 0x809;
+static constexpr uint16_t kIOClock1 = 0x906;
+static constexpr uint16_t kIOClock2 = 0x907;
 
 // Audio channels
 //
@@ -119,14 +120,16 @@ static constexpr uint16_t kIOClock4 = 0x809;
 //               +------- Volume (0%, 25%, 50%, 100%)
 //
 // Setting the volume to 0 will stop playing the audio, so no resources are wasted playing a mute sound.
-static constexpr uint16_t kIOAudioChannel1 = 0x80A;
-static constexpr uint16_t kIOAudioChannel2 = 0x80B;
-static constexpr uint16_t kIOAudioChannel3 = 0x80C;
-static constexpr uint16_t kIOAudioChannel4 = 0x80D;
+static constexpr uint16_t kIOAudioChannel1 = 0x908;
+static constexpr uint16_t kIOAudioChannel2 = 0x909;
+static constexpr uint16_t kIOAudioChannel3 = 0x90A;
+static constexpr uint16_t kIOAudioChannel4 = 0x90B;
 
 // Reserved memory locations for future expansion
-static constexpr uint16_t kIOReserved1 = 0x80E;
-static constexpr uint16_t kIOReserved2 = 0x80F;
+static constexpr uint16_t kIOReserved1 = 0x90C;
+static constexpr uint16_t kIOReserved2 = 0x90D;
+static constexpr uint16_t kIOReserved2 = 0x90E;
+static constexpr uint16_t kIOReserved2 = 0x90F;
 
 // Interrupt event codes
 //
@@ -139,12 +142,10 @@ static constexpr uint8_t kIOEventMousedown = 0x03;
 static constexpr uint8_t kIOEventMouseup = 0x04;
 static constexpr uint8_t kIOEventClock1 = 0x05;
 static constexpr uint8_t kIOEventClock2 = 0x06;
-static constexpr uint8_t kIOEventClock3 = 0x07;
-static constexpr uint8_t kIOEventClock4 = 0x08;
 
 // Misc. IO control flags
 //
-// IO + 0x800: 0 0 0 0 0 0 0 0
+// IO + 0x900: 0 0 0 0 0 0 0 0
 //             ^ ^ ^ ^ ^ ^ ^ ^
 //             | | | | | | | |
 //             | | | | | | | +- Reserved for future expansion
@@ -201,10 +202,10 @@ public:
 private:
   // Memory buffer of the IO chip
   union {
-    uint8_t buffer[0x80C] = {0};
+    uint8_t buffer[0x910] = {0};
     struct {
       // Display memory buffer
-      uint8_t vram[0x800];
+      uint8_t vram[0x900];
 
       uint8_t control;
       ColorValue background_color;
@@ -221,14 +222,14 @@ private:
       };
       uint8_t clock1;
       uint8_t clock2;
-      uint8_t clock3;
-      uint8_t clock4;
       uint8_t audio_channel1;
       uint8_t audio_channel2;
       uint8_t audio_channel3;
       uint8_t audio_channel4;
       uint8_t reserved1;
       uint8_t reserved2;
+      uint8_t reserved3;
+      uint8_t reserved4;
     };
   };
 };
