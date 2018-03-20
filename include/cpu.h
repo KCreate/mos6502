@@ -84,7 +84,7 @@ public:
   // TODO: Make this thread safe
   void interrupt_reset();
 
-private:
+// private:
   // A single CPU instruction
   //
   // Contains function pointers to the address mode

@@ -26,6 +26,7 @@
  */
 
 #include <cstdint>
+#include <atomic>
 
 #include "busdevice.h"
 
@@ -78,9 +79,18 @@ public:
   }
 
 private:
+
   // Attached devices
   BusDevice* RAM = nullptr;
   BusDevice* IO = nullptr;
   BusDevice* ROM = nullptr;
+
+  // Interrupt lines
+  //
+  // These are meant to be polled by the CPU every so often and service them
+  // accordingly.
+  std::atomic<bool> irq_active;
+  std::atomic<bool> nmi_active;
+  std::atomic<bool> rst_active;
 };
 }  // namespace M6502

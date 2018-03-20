@@ -52,29 +52,27 @@ int main() {
   bus.attach_rom(&rom);
 
   // Set the reset vector
-  rom.get_buffer()[kVecRES - kAddrROM] = 0x0C;
-  rom.get_buffer()[kVecRES - kAddrROM + 1] = 0x48;
+  rom.get_buffer()[kVecRES - kAddrROM] = 0x10;
+  rom.get_buffer()[kVecRES - kAddrROM + 1] = 0x49;
 
   // Flash some code into the ROM for the CPU to execute
   uint8_t code[] = {
-    0xA2, 0x00,             // 480C: LDX #$00
-                            //
-    0xE0, 0x20,             // 480E: CPX #$20
-    0xF0, 0x09,             // 4810: BEQ 481B
-                            //
-    0xA9, 0x0F,             // 4812: LDA #$0F, A
-    0x9D, 0x00, 0x40,       // 4814: STA $800, X
-    0xE8,                   // 4817: INX
-    0x4C, 0x0E, 0x48,       // 4818: JMP $480E
-                            //
-    0xFF                    // 481B: illegal opcode
+    0xEA,                   // 4910: NOP
+    0x4C, 0x11, 0x49,       // 4911: JMP $4911
   };
   std::memcpy(rom.get_buffer(), code, sizeof(code));
 
   CPU cpu(&bus);
-  cpu.start();
 
-  std::this_thread::sleep_for(5s);
+  std::thread cpu_thread([&cpu, &io]() {
+    cpu.start();
+    std::cout << cpu.PC << std::endl;
+    io.stop();
+  });
+
+  io.start();
+  std::cout << "we are here" << std::endl;
+  cpu_thread.join();
 
   return 0;
 }

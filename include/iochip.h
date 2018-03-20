@@ -25,7 +25,13 @@
  * SOFTWARE.
  */
 
+#include <SFML/Window.hpp>
+#include <SFML/Graphics.hpp>
+#include <atomic>
 #include <cstdint>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include "busdevice.h"
 
@@ -64,8 +70,14 @@ namespace M6502 {
 // Keyboard & Mouse access:
 //   The IOChip listens for keyboard and mouse events. These events are passed to the CPU via the interrupt mechanism.
 //   Interrupts for either keyboard or mouse events can be disabled via their respective flags in the control byte.
+static std::string kIOVideoTitle = "6502 Microcontroller";
 static constexpr size_t kIOVideoWidth = 64;
 static constexpr size_t kIOVideoHeight = 36;
+static constexpr size_t kIOVideoScaleWidth = 20;
+static constexpr size_t kIOVideoScaleHeight = 20;
+static constexpr size_t kIOVideoModeWidth = kIOVideoWidth * kIOVideoScaleWidth;
+static constexpr size_t kIOVideoModeHeight = kIOVideoHeight * kIOVideoScaleHeight;
+static constexpr size_t kIOVRAMSize = kIOVideoWidth * kIOVideoHeight;
 static constexpr size_t kIOVideoRedMask = 0xE0;
 static constexpr size_t kIOVideoGreenMask = 0x1C;
 static constexpr size_t kIOVideoBlueMask = 0x03;
@@ -128,24 +140,25 @@ static constexpr uint16_t kIOAudioChannel4 = 0x90B;
 // Reserved memory locations for future expansion
 static constexpr uint16_t kIOReserved1 = 0x90C;
 static constexpr uint16_t kIOReserved2 = 0x90D;
-static constexpr uint16_t kIOReserved2 = 0x90E;
-static constexpr uint16_t kIOReserved2 = 0x90F;
+static constexpr uint16_t kIOReserved3 = 0x90E;
+static constexpr uint16_t kIOReserved4 = 0x90F;
 
 // Interrupt event codes
 //
 // When the IO chip interrupts the CPU and requests servicing, it puts an event type into the respective memory
 // location. The Chip can then decide what to do with the data.
-static constexpr uint8_t kIOEventKeydown = 0x00;
-static constexpr uint8_t kIOEventKeyup = 0x01;
-static constexpr uint8_t kIOEventMousemove = 0x02;
-static constexpr uint8_t kIOEventMousedown = 0x03;
-static constexpr uint8_t kIOEventMouseup = 0x04;
-static constexpr uint8_t kIOEventClock1 = 0x05;
-static constexpr uint8_t kIOEventClock2 = 0x06;
+static constexpr uint8_t kIOEventUnspecified = 0x00;
+static constexpr uint8_t kIOEventKeydown = 0x01;
+static constexpr uint8_t kIOEventKeyup = 0x02;
+static constexpr uint8_t kIOEventMousemove = 0x03;
+static constexpr uint8_t kIOEventMousedown = 0x04;
+static constexpr uint8_t kIOEventMouseup = 0x05;
+static constexpr uint8_t kIOEventClock1 = 0x06;
+static constexpr uint8_t kIOEventClock2 = 0x07;
 
 // Misc. IO control flags
 //
-// IO + 0x900: 0 0 0 0 0 0 0 0
+// IO + 0x900: 0 0 0 0 0 1 1 0
 //             ^ ^ ^ ^ ^ ^ ^ ^
 //             | | | | | | | |
 //             | | | | | | | +- Reserved for future expansion
@@ -153,7 +166,7 @@ static constexpr uint8_t kIOEventClock2 = 0x06;
 //             | | | | | +----- Enable / Disable the keyboard
 //             | | | | +------- RGB / HSL color space
 //             | | | +--------- Landscape / Portrait layout
-//             | | +----------- Fullscreen or floating window
+//             | | +----------- Floating or Fullscreen window
 //             | +------------- Show or hide the window
 //             +--------------- Graphics or text mode
 static constexpr uint8_t kIOControlMode = 0x80;
@@ -161,12 +174,15 @@ static constexpr uint8_t kIOControlVisibility = 0x40;
 static constexpr uint8_t kIOControlFullscreen = 0x20;
 static constexpr uint8_t kIOControlOrientation = 0x10;
 static constexpr uint8_t kIOControlColorMode = 0x08;
-static constexpr uint8_t kIOControlKeyboardEnabled = 0x04;
-static constexpr uint8_t kIOControlMouseEnabled = 0x02;
+static constexpr uint8_t kIOControlKeyboardDisabled = 0x04;
+static constexpr uint8_t kIOControlMouseDisabled = 0x02;
 
 // 1 byte color value, encoding either an RGB or HSL value
 struct ColorValue {
   uint8_t value;
+
+  ColorValue() : value(0x00) {
+  }
 
   ColorValue(uint8_t v) : value(v) {
   }
@@ -189,6 +205,13 @@ struct ColorValue {
   inline uint8_t get_hsl_l() {
     return this->value | kIOVideoLightnessMask;
   }
+  inline sf::Color get_rgb_sfml_color() {
+    return sf::Color(this->get_rgb_r(), this->get_rgb_g(), this->get_rgb_b());
+  }
+  inline sf::Color get_hsl_sfml_color() {
+    // TODO: Implement
+    return sf::Color(255, 0, 0);
+  }
 };
 
 class IOChip : public BusDevice {
@@ -196,42 +219,51 @@ public:
   IOChip(uint16_t maddr);
   ~IOChip();
 
+  void start();
+  void stop();
   void write(uint16_t address, uint8_t value);
   uint8_t read(uint16_t address);
 
 private:
-  // Memory buffer of the IO chip
-  union {
-    uint8_t buffer[0x910] = {0};
-    struct {
-      // Display memory buffer
-      uint8_t vram[0x900];
+  // Starts an audio thread using a byte at a given offset
+  void thread_audio(uint16_t audio_offset);
 
-      uint8_t control;
-      ColorValue background_color;
-      ColorValue foreground_color;
-      uint8_t event_type;
-      union {
-        struct {
-          uint8_t keycode;
-        } keyboard;
-        struct {
-          uint8_t x;
-          uint8_t y;
-        } mouse;
-      };
-      uint8_t clock1;
-      uint8_t clock2;
-      uint8_t audio_channel1;
-      uint8_t audio_channel2;
-      uint8_t audio_channel3;
-      uint8_t audio_channel4;
-      uint8_t reserved1;
-      uint8_t reserved2;
-      uint8_t reserved3;
-      uint8_t reserved4;
-    };
+  // Starts a clock thread using a byte at a given offset
+  void thread_clock(uint16_t clock_offset);
+
+  // Stars a rendering thread using a sf::RenderWindow*
+  void thread_render(sf::RenderWindow* window);
+
+  uint8_t vram[0x900];
+  uint8_t control;
+  ColorValue background_color;
+  ColorValue foreground_color;
+  uint8_t event_type;
+  union {
+    struct {
+      uint8_t keycode;
+    } keyboard;
+    struct {
+      uint8_t x;
+      uint8_t y;
+    } mouse;
   };
+  uint8_t clock1;
+  uint8_t clock2;
+  uint8_t audio_channel1;
+  uint8_t audio_channel2;
+  uint8_t audio_channel3;
+  uint8_t audio_channel4;
+  uint8_t reserved1;
+  uint8_t reserved2;
+  uint8_t reserved3;
+  uint8_t reserved4;
+
+  // Thread synchronisation stuff
+  std::atomic<bool> shutdown;
+  std::vector<std::thread> render_threads;
+  std::vector<std::thread> clock_threads;
+  std::vector<std::thread> audio_threads;
 };
 
 }  // namespace M6502
