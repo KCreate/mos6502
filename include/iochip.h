@@ -45,12 +45,10 @@ namespace M6502 {
 // in memory.
 //
 // Graphics mode:
-//   In graphics mode, the display can either be used in RGB or HSL mode. Each pixel is 1 byte in size and can thus
-//   display 256 different colors. Depending on the color encoding choosen, slightly different colors might be
-//   reachable in each mode. The color encodings are specified as follows:
+//   In graphics mode, the display can be driven via RGB values. Each pixel is 1 byte in size and can thus
+//   display 256 different colors.
 //
 //   RGB-Pixel: rrrgggbb
-//   HSL-Pixel: hhhhssll
 //
 //   The background and foreground color configuration bytes have no effect in this mode and are ignored.
 //
@@ -81,9 +79,6 @@ static constexpr size_t kIOVRAMSize = kIOVideoWidth * kIOVideoHeight;
 static constexpr size_t kIOVideoRedMask = 0xE0;
 static constexpr size_t kIOVideoGreenMask = 0x1C;
 static constexpr size_t kIOVideoBlueMask = 0x03;
-static constexpr size_t kIOVideoHueMask = 0xF0;
-static constexpr size_t kIOVideoSaturationMask = 0x0C;
-static constexpr size_t kIOVideoLightnessMask = 0x03;
 
 // Control ports
 //
@@ -158,13 +153,13 @@ static constexpr uint8_t kIOEventClock2 = 0x07;
 
 // Misc. IO control flags
 //
-// IO + 0x900: 0 0 0 0 0 1 1 0
+// IO + 0x900: 0 0 0 0 1 1 0 0
 //             ^ ^ ^ ^ ^ ^ ^ ^
 //             | | | | | | | |
 //             | | | | | | | +- Reserved for future expansion
-//             | | | | | | +--- Enable / Disable the mouse
-//             | | | | | +----- Enable / Disable the keyboard
-//             | | | | +------- RGB / HSL color space
+//             | | | | | | +--- Reserved for future expansion
+//             | | | | | +----- Enable / Disable the mouse
+//             | | | | +------- Enable / Disable the keyboard
 //             | | | +--------- Landscape / Portrait layout
 //             | | +----------- Floating or Fullscreen window
 //             | +------------- Show or hide the window
@@ -173,11 +168,10 @@ static constexpr uint8_t kIOControlMode = 0x80;
 static constexpr uint8_t kIOControlVisibility = 0x40;
 static constexpr uint8_t kIOControlFullscreen = 0x20;
 static constexpr uint8_t kIOControlOrientation = 0x10;
-static constexpr uint8_t kIOControlColorMode = 0x08;
-static constexpr uint8_t kIOControlKeyboardDisabled = 0x04;
-static constexpr uint8_t kIOControlMouseDisabled = 0x02;
+static constexpr uint8_t kIOControlKeyboardDisabled = 0x08;
+static constexpr uint8_t kIOControlMouseDisabled = 0x04;
 
-// 1 byte color value, encoding either an RGB or HSL value
+// 1 byte RGB value
 struct ColorValue {
   uint8_t value;
 
@@ -187,30 +181,17 @@ struct ColorValue {
   ColorValue(uint8_t v) : value(v) {
   }
 
-  inline uint8_t get_rgb_r() {
-    return (this->value | kIOVideoRedMask) >> 5;
+  inline uint8_t get_r() {
+    return ((this->value & kIOVideoRedMask) >> 5) * 32;
   }
-  inline uint8_t get_rgb_g() {
-    return (this->value | kIOVideoGreenMask) >> 2;
+  inline uint8_t get_g() {
+    return ((this->value & kIOVideoGreenMask) >> 2) * 32;
   }
-  inline uint8_t get_rgb_b() {
-    return this->value | kIOVideoBlueMask;
+  inline uint8_t get_b() {
+    return (this->value & kIOVideoBlueMask) * 64;
   }
-  inline uint8_t get_hsl_h() {
-    return (this->value | kIOVideoHueMask) >> 4;
-  }
-  inline uint8_t get_hsl_s() {
-    return (this->value | kIOVideoSaturationMask) >> 2;
-  }
-  inline uint8_t get_hsl_l() {
-    return this->value | kIOVideoLightnessMask;
-  }
-  inline sf::Color get_rgb_sfml_color() {
-    return sf::Color(this->get_rgb_r(), this->get_rgb_g(), this->get_rgb_b());
-  }
-  inline sf::Color get_hsl_sfml_color() {
-    // TODO: Implement
-    return sf::Color(255, 0, 0);
+  inline sf::Color get_sfml_color() {
+    return sf::Color(this->get_r(), this->get_g(), this->get_b());
   }
 };
 
@@ -232,7 +213,7 @@ private:
   void thread_clock(uint16_t clock_offset);
 
   // Stars a rendering thread using a sf::RenderWindow*
-  void thread_render(sf::RenderWindow* window);
+  void thread_render();
 
   uint8_t vram[0x900];
   uint8_t control;
@@ -260,8 +241,9 @@ private:
   uint8_t reserved4;
 
   // Thread synchronisation stuff
+  sf::RenderWindow* main_window = nullptr;
+  std::thread render_thread;
   std::atomic<bool> shutdown;
-  std::vector<std::thread> render_threads;
   std::vector<std::thread> clock_threads;
   std::vector<std::thread> audio_threads;
 };

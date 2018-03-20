@@ -56,9 +56,21 @@ int main() {
   rom.get_buffer()[kVecRES - kAddrROM + 1] = 0x49;
 
   // Flash some code into the ROM for the CPU to execute
+  //
+  // Example used: vram_simple_copy.asm
   uint8_t code[] = {
-    0xEA,                   // 4910: NOP
-    0x4C, 0x11, 0x49,       // 4911: JMP $4911
+    0xA2, 0x00,             // 0x4910:   LDX #$00
+    0xA9, 0x1C,             // 0x4912:   LDA #$1C
+                            //         .HEAD
+    0x9D, 0x00, 0x40,       // 0x4914:   STA VRAM, X
+    0xE0, 0xFF,             // 0x4917:   CPX #$FF
+    0xF0, 0x04,             // 0x4919:   BEQ .END       <- needs address calc
+    0xE8,                   // 0x491B:   INX
+    0x4C, 0x14, 0x49,       // 0x491C:   JMP .HEAD      <- needs address calc
+                            //         .END
+    0xEA,                   // 0x491F:   NOP
+    0x4C, 0x1F, 0x49,       // 0x4920:   JMP .END       <- needs address calc
+    0xFF                    // 0x4923:   0xFF
   };
   std::memcpy(rom.get_buffer(), code, sizeof(code));
 
@@ -66,12 +78,10 @@ int main() {
 
   std::thread cpu_thread([&cpu, &io]() {
     cpu.start();
-    std::cout << cpu.PC << std::endl;
     io.stop();
   });
 
   io.start();
-  std::cout << "we are here" << std::endl;
   cpu_thread.join();
 
   return 0;

@@ -25,6 +25,7 @@
  * SOFTWARE.
  */
 
+#include <chrono>
 #include <cstring>
 
 #include "iochip.h"
@@ -68,32 +69,41 @@ void IOChip::start() {
   this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock1));
   this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock1));
 
-  // Display event loop
-  sf::RenderWindow window(sf::VideoMode(kIOVideoModeWidth, kIOVideoModeHeight), kIOVideoTitle, sf::Style::Titlebar);
-  window.setFramerateLimit(30);
-  this->render_threads.push_back(std::thread(&IOChip::thread_render, this, &window));
+  // Create the window and the thread which handles all the drawing
+  //
+  // We separate the event loop and the drawing code because we don't want to
+  // drop any frames just because we're waiting for events.
+  //
+  // SFML supports this natively and we don't have to write any new code to make
+  // this work.
+  //
+  // See https://www.sfml-dev.org/tutorials/2.0/graphics-draw.php for a simple
+  // tutorial on how drawing from other threads works.
+  sf::VideoMode video_mode(kIOVideoModeWidth, kIOVideoModeHeight);
+  this->main_window = new sf::RenderWindow(video_mode, kIOVideoTitle, sf::Style::Titlebar);
+  this->render_thread = std::thread(&IOChip::thread_render, this);
 
   sf::Event event;
-  while (!this->shutdown && window.isOpen()) {
-    while (window.waitEvent(event)) {
-      std::cout << "got event: " << event.type << std::endl;
+  while (!this->shutdown && this->main_window->isOpen()) {
+    while (this->main_window->waitEvent(event)) {
+      // TODO: Handle events
     }
   }
-
-  this->stop();
 }
 
 void IOChip::stop() {
   this->shutdown = true;
-  for (auto& t : this->clock_threads) {
+  this->render_thread.join();
+  for (auto& t : this->clock_threads)
     t.join();
-  }
-  for (auto& t : this->audio_threads) {
+  for (auto& t : this->audio_threads)
     t.join();
-  }
+
+  delete this->main_window;
 
   this->clock_threads.clear();
   this->audio_threads.clear();
+  this->main_window = nullptr;
 }
 
 void IOChip::thread_audio(uint16_t) {
@@ -102,56 +112,66 @@ void IOChip::thread_audio(uint16_t) {
 void IOChip::thread_clock(uint16_t) {
 }
 
-void IOChip::thread_render(sf::RenderWindow* window) {
-  while (!this->shutdown && window->isOpen()) {
-    // Width and height of the brush.
-    uint32_t brush_w = kIOVideoScaleWidth;
-    uint32_t brush_h = kIOVideoScaleHeight;
-    if (this->control & kIOControlOrientation) {
-      brush_w = brush_h;
-      brush_h = brush_w;
+void IOChip::thread_render() {
+  using namespace std::chrono_literals;
+
+  while (!this->shutdown && this->main_window->isOpen()) {
+    // Check the control bytes for the configuration of the display
+    bool portrait_mode = this->control & kIOControlOrientation;
+    bool window_hidden = this->control & kIOControlVisibility;
+    // bool text_mode = this->control & kIOControlMode;
+
+    // If the screen is hidden we sleep for some time until the window
+    // is visible again.
+    //
+    // TODO: Could this be made more efficient using a lock?
+    if (window_hidden) {
+      std::this_thread::sleep_for(1s);
+      continue;
     }
-    sf::RectangleShape brush(sf::Vector2f(brush_w, brush_h));
 
-    // In portrait mode, we swap the width and height components
-    if (this->control & kIOControlOrientation) {
-      window->setSize(sf::Vector2u(brush_w * kIOVideoHeight, brush_h * kIOVideoWidth));
-    } else {
-      window->setSize(sf::Vector2u(brush_w * kIOVideoWidth, brush_h * kIOVideoHeight));
-    }
+    // These are the dimensions of the window we are drawing to
+    // and of the brush that is used to paint the pixels.
+    uint32_t screen_width = portrait_mode ? kIOVideoHeight : kIOVideoWidth;
+    uint32_t screen_height = portrait_mode ? kIOVideoWidth : kIOVideoHeight;
+    uint32_t pixels_row = portrait_mode ? kIOVideoScaleHeight : kIOVideoScaleWidth;
+    uint32_t pixels_column = portrait_mode ? kIOVideoScaleWidth : kIOVideoScaleHeight;
 
-    for (uint8_t y = 0; y < kIOVideoHeight; y++) {
-      for (uint8_t x = 0; x < kIOVideoWidth; x++) {
-        // In portrait mode, we have to swap the x/y coordinates
-        // in order to draw correctly onto the portrait mode display.
-        uint8_t brush_x = x;
-        uint8_t brush_y = y;
-        if (this->control & kIOControlOrientation) {
-          brush_x = y;
-          brush_y = x;
-        }
-        brush.setPosition(sf::Vector2f(brush_x * brush_w, brush_y * brush_h));
+    // Iterate over every pixel in VRAM and draw it to the screen
+    sf::RectangleShape brush(sf::Vector2f(pixels_row, pixels_column));
+    for (uint8_t y = 0; y < screen_height; y++) {
+      for (uint8_t x = 0; x < screen_width; x++) {
+        // Fetch the color from VRAM
+        uint8_t vram_raw = this->vram[x + y * screen_width];
+        ColorValue vram_color(vram_raw);
 
-        // Check if we are in RGB or HSL colorspace
-        ColorValue vram_byte = ColorValue(this->vram[brush_x + brush_y * brush_w]);
-        if (this->control & kIOControlColorMode) {
-          // HSL
-          // TODO: Implement
-        } else {
-          // RGB
-          brush.setFillColor(sf::Color(vram_byte.get_rgb_sfml_color()));
-        }
-
-        window->draw(brush);
+        // Paint the corresponding section of the window
+        brush.setFillColor(vram_color.get_sfml_color());
+        brush.setPosition(sf::Vector2f(x * pixels_row, y * pixels_column));
+        this->main_window->draw(brush);
       }
     }
 
-    window->display();
+    this->main_window->display();
   }
 }
 
 void IOChip::write(uint16_t address, uint8_t value) {
   std::cout << "write " << address << " <- " << static_cast<unsigned int>(value) << std::endl;
+
+  // Check if we are writing to VRAM
+  //
+  // All other writes write to some property and may require
+  // additional special handling
+  //
+  // TODO: The render thread should pause if there are now new VRAM updates.
+  //       This could be achieved via some new control flag which would enable
+  //       or disable the render thread.
+  if (address < kIOControl) {
+    this->vram[address] = value;
+  } else {
+    // TODO
+  }
 }
 
 uint8_t IOChip::read(uint16_t address) {
