@@ -11,11 +11,11 @@
 
 .HEAD
   STA VRAM, X   ; copy the template byte to VRAM + counter
-  INX           ; increment the counter
-
   CPX #$FF      ; if the counter variable has reached 0xFF
   BEQ .END      ; we jump to the end
+  INX           ; increment the counter
   JMP .HEAD     ; jump back to the loop condition
-
 .END
+  NOP
+  JMP .END      ; endless loop for testing purposes
   ILLEGAL_OPCODE
