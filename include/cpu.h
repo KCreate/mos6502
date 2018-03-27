@@ -84,7 +84,7 @@ public:
   // TODO: Make this thread safe
   void interrupt_reset();
 
-// private:
+  // private:
   // A single CPU instruction
   //
   // Contains function pointers to the address mode
@@ -126,7 +126,6 @@ public:
 
   // Status register
   union {
-
     // Struct bits
     //
     // S : Sign flag, Set if the result of an operation is negative

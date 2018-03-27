@@ -31,7 +31,10 @@
 #include <cstdint>
 #include <string>
 #include <thread>
+#include <shared_mutex>
 #include <vector>
+#include <queue>
+#include <condition_variable>
 
 #include "busdevice.h"
 
@@ -97,14 +100,12 @@ static constexpr uint16_t kIOMouseYCoord = 0x905;
 
 // Hardware clocks
 //
-// The hardware clocks can interrupt the CPU at configurable intervals of time. When the first bit is cleared,
-// the clock interrupts the CPU every 1/f seconds. If the first bit is set, the clocks interrupt the CPU
-// every n seconds. If you change this value while an interval is still running, the active interval will
-// not terminate, but will wait the previously configured amount of time and use the new timing afterwards.
+// The hardware clocks can interrupt the CPU at configurable intervals of time. When the value stored in these
+// memory locations is 0, the clocks are turned off. The minimum amount of time between clock pulses is
+// 5ms * f, where f is the value stored inside memory. Reading from a clock will yield you the amount
+// of 5ms intervals still left until the next clock pulse.
 //
 // Each clock interrupt sets an event type in the event type memory location so the CPU knows which clock fired.
-//
-// If the clock is configured as 1/0 or 0 seconds then the clock is considered disabled and will not fire.
 //
 // Clock: 0 0000000
 //        ^ ^
@@ -130,13 +131,37 @@ static constexpr uint16_t kIOClock2 = 0x907;
 static constexpr uint16_t kIOAudioChannel1 = 0x908;
 static constexpr uint16_t kIOAudioChannel2 = 0x909;
 static constexpr uint16_t kIOAudioChannel3 = 0x90A;
-static constexpr uint16_t kIOAudioChannel4 = 0x90B;
 
-// Reserved memory locations for future expansion
-static constexpr uint16_t kIOReserved1 = 0x90C;
-static constexpr uint16_t kIOReserved2 = 0x90D;
-static constexpr uint16_t kIOReserved3 = 0x90E;
-static constexpr uint16_t kIOReserved4 = 0x90F;
+// VRAM Access
+//
+// There are two methods of directly writing to VRAM. You either write directly to an address in the VRAM,
+// (e.g. through some 16-bit addressing mode) or you utilize the various drawing functions the IOChip provides.
+//
+// Writing to kIODrawMethod will commit the action and execute the corresponding method. Values inside the argument
+// bytes will not be altered and can be used for further drawing.
+//
+// Drawing functions supported by the IOChip:
+//
+// Geometric shapes
+//  io_draw_rectangle(x, y, w, h)
+//  io_draw_square(x, y, s)
+//  io_draw_dot(x, y) - Uses the body color
+//
+// Color
+//  io_brush_set_body(v)
+//  io_brush_set_outline(v)
+static constexpr uint16_t kIODrawMethod = 0x90B;
+static constexpr uint16_t kIODrawArg1 = 0x90C;
+static constexpr uint16_t kIODrawArg2 = 0x90D;
+static constexpr uint16_t kIODrawArg3 = 0x90E;
+static constexpr uint16_t kIODrawArg4 = 0x90F;
+
+// Draw method codes
+static constexpr uint8_t kIODrawRectangle = 0x00;
+static constexpr uint8_t kIODrawSquare = 0x01;
+static constexpr uint8_t kIODrawDot = 0x02;
+static constexpr uint8_t kIOBrushSetBody = 0x03;
+static constexpr uint8_t kIOBrushSetOutline = 0x04;
 
 // Interrupt event codes
 //
@@ -195,6 +220,15 @@ struct ColorValue {
   }
 };
 
+// Draw instruction telling the drawing thread what to do
+struct DrawInstruction {
+  uint8_t method_code;
+  uint8_t arg1;
+  uint8_t arg2;
+  uint8_t arg3;
+  uint8_t arg4;
+};
+
 class IOChip : public BusDevice {
 public:
   IOChip(uint16_t maddr);
@@ -215,37 +249,67 @@ private:
   // Stars a rendering thread using a sf::RenderWindow*
   void thread_render();
 
-  uint8_t vram[0x900];
-  uint8_t control;
-  ColorValue background_color;
-  ColorValue foreground_color;
-  uint8_t event_type;
+  // Drawing thread
+  void thread_drawing();
+
   union {
+    uint8_t memory[0x910];
     struct {
-      uint8_t keycode;
-    } keyboard;
-    struct {
-      uint8_t x;
-      uint8_t y;
-    } mouse;
+      uint8_t vram[0x900];
+      uint8_t control;
+      ColorValue background_color;
+      ColorValue foreground_color;
+      uint8_t event_type;
+      union {
+        struct {
+          uint8_t keycode;
+        } keyboard;
+        struct {
+          uint8_t x;
+          uint8_t y;
+        } mouse;
+      };
+      uint8_t clock1;
+      uint8_t clock2;
+      uint8_t audio_channel1;
+      uint8_t audio_channel2;
+      uint8_t audio_channel3;
+      uint8_t draw_method;
+      uint8_t draw_arg1;
+      uint8_t draw_arg2;
+      uint8_t draw_arg3;
+      uint8_t draw_arg4;
+    };
   };
-  uint8_t clock1;
-  uint8_t clock2;
-  uint8_t audio_channel1;
-  uint8_t audio_channel2;
-  uint8_t audio_channel3;
-  uint8_t audio_channel4;
-  uint8_t reserved1;
-  uint8_t reserved2;
-  uint8_t reserved3;
-  uint8_t reserved4;
 
   // Thread synchronisation stuff
   sf::RenderWindow* main_window = nullptr;
   std::thread render_thread;
+  std::thread drawing_thread;
   std::atomic<bool> shutdown;
   std::vector<std::thread> clock_threads;
   std::vector<std::thread> audio_threads;
+
+  // Rendering configuration
+  std::atomic<bool> text_mode;
+  std::atomic<bool> window_hidden;
+  std::atomic<bool> window_fullscreen;
+  std::atomic<bool> window_portrait;
+  std::atomic<bool> keyboard_disabled;
+  std::atomic<bool> mouse_disabled;
+
+  // Advanced rendering
+  std::queue<DrawInstruction> draw_pipeline;
+  std::mutex draw_mutex;
+  std::shared_mutex draw_pipeline_mutex;
+  std::condition_variable condition_draw;
+  std::atomic<uint8_t> brush_body_color;
+  std::atomic<uint8_t> brush_outline_color;
+
+  // Advanced drawing methods
+  void draw_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
+  void draw_square(uint8_t x, uint8_t y, uint8_t s);
+  void draw_dot(uint8_t x, uint8_t y);
 };
 
 }  // namespace M6502

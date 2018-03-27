@@ -49,7 +49,6 @@ IOChip::IOChip(uint16_t maddr) : BusDevice(maddr) {
   this->audio_channel1 = 0x00;
   this->audio_channel2 = 0x00;
   this->audio_channel3 = 0x00;
-  this->audio_channel4 = 0x00;
 
   this->shutdown = false;
 }
@@ -65,9 +64,9 @@ void IOChip::start() {
   this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel1));
   this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel2));
   this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel3));
-  this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel4));
   this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock1));
   this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock1));
+  this->drawing_thread = std::thread(&IOChip::thread_drawing, this);
 
   // Create the window and the thread which handles all the drawing
   //
@@ -110,6 +109,47 @@ void IOChip::thread_audio(uint16_t) {
 }
 
 void IOChip::thread_clock(uint16_t) {
+}
+
+void IOChip::thread_drawing() {
+  while (!this->shutdown) {
+    std::unique_lock<std::mutex> l(this->draw_mutex);
+    this->condition_draw.wait(l, [&]() {
+      std::shared_lock<std::shared_mutex> lk(this->draw_pipeline_mutex);
+      return this->draw_pipeline.size() > 0;
+    });
+
+    // Fetch an instruction from the pipeline
+    DrawInstruction instruction;
+    {
+      std::unique_lock<std::shared_mutex> lk(this->draw_pipeline_mutex);
+      instruction = this->draw_pipeline.front();
+      this->draw_pipeline.pop();
+    }
+
+    switch (instruction.method_code) {
+      case kIODrawRectangle: {
+        this->draw_rectangle(instruction.arg1, instruction.arg2, instruction.arg3, instruction.arg4);
+        break;
+      }
+      case kIODrawSquare: {
+        this->draw_square(instruction.arg1, instruction.arg2, instruction.arg3);
+        break;
+      }
+      case kIODrawDot: {
+        this->draw_dot(instruction.arg1, instruction.arg2);
+        break;
+      }
+      case kIOBrushSetBody: {
+        this->brush_body_color = instruction.arg1;
+        break;
+      }
+      case kIOBrushSetOutline: {
+        this->brush_outline_color = instruction.arg1;
+        break;
+      }
+    }
+  }
 }
 
 void IOChip::thread_render() {
@@ -157,26 +197,90 @@ void IOChip::thread_render() {
 }
 
 void IOChip::write(uint16_t address, uint8_t value) {
-  std::cout << "write " << address << " <- " << static_cast<unsigned int>(value) << std::endl;
+  this->memory[address] = value;
 
-  // Check if we are writing to VRAM
+  // Some memory locations require further processing, these are handled here
   //
-  // All other writes write to some property and may require
-  // additional special handling
-  //
-  // TODO: The render thread should pause if there are now new VRAM updates.
+  // TODO: The render thread should pause if there are no new VRAM updates.
   //       This could be achieved via some new control flag which would enable
   //       or disable the render thread.
-  if (address < kIOControl) {
-    this->vram[address] = value;
-  } else {
-    // TODO
+  switch (address) {
+    case kIOControl: {
+      this->text_mode = (value & kIOControlMode);
+      this->window_hidden = (value & kIOControlVisibility);
+      this->window_fullscreen = (value & kIOControlFullscreen);
+      this->window_portrait = (value & kIOControlOrientation);
+      this->keyboard_disabled = (value & kIOControlKeyboardDisabled);
+      this->mouse_disabled = (value & kIOControlMouseDisabled);
+      break;
+    }
+    case kIODrawMethod: {
+      // Load the draw instruction and append to the pipeline
+      uint8_t arg1 = this->memory[kIODrawArg1];
+      uint8_t arg2 = this->memory[kIODrawArg2];
+      uint8_t arg3 = this->memory[kIODrawArg3];
+      uint8_t arg4 = this->memory[kIODrawArg4];
+
+      {
+        std::unique_lock<std::shared_mutex> lk(this->draw_pipeline_mutex);
+        this->draw_pipeline.push({value, arg1, arg2, arg3, arg4});
+      }
+
+      // Notify the drawing thread that there is work to do
+      this->condition_draw.notify_one();
+      break;
+    }
   }
 }
 
 uint8_t IOChip::read(uint16_t address) {
   std::cout << "read " << std::hex << address << std::dec << std::endl;
   return 0;
+}
+
+void IOChip::draw_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
+  bool portrait_mode = this->control & kIOControlOrientation;
+  uint8_t screen_width = portrait_mode ? kIOVideoHeight : kIOVideoWidth;
+
+  std::cout << "drawing rectangle: ";
+  std::cout << static_cast<unsigned int>(x) << ", ";
+  std::cout << static_cast<unsigned int>(y) << ", ";
+  std::cout << static_cast<unsigned int>(w) << ", ";
+  std::cout << static_cast<unsigned int>(h) << "\n";
+
+  // Draw the rectangle
+  for (uint8_t by = 0; by < h; by++) {
+    for (uint8_t bx = 0; bx < w; bx++) {
+      uint8_t color = by == 0 || bx == 0 || by == h - 1 || bx == w - 1 ? this->brush_outline_color : brush_body_color;
+      uint32_t offset = (bx + x) + (by + y) * screen_width;
+      if (offset >= 0x900) {
+        continue;
+      }
+      this->vram[offset] = color;
+    }
+  }
+}
+
+void IOChip::draw_square(uint8_t x, uint8_t y, uint8_t s) {
+  bool portrait_mode = this->control & kIOControlOrientation;
+  uint8_t screen_width = portrait_mode ? kIOVideoHeight : kIOVideoWidth;
+
+  // Draw the rectangle
+  for (uint8_t by = 0; by < s; by++) {
+    for (uint8_t bx = 0; bx < s; bx++) {
+      uint8_t color = by == 0 || bx == 0 || by == s - 1 || bx == s - 1 ? this->brush_outline_color : brush_body_color;
+      uint32_t offset = (bx + x) + (by + y) * screen_width;
+      if (offset >= 0x900)
+        continue;
+      this->vram[offset] = color;
+    }
+  }
+}
+
+void IOChip::draw_dot(uint8_t x, uint8_t y) {
+  bool portrait_mode = this->control & kIOControlOrientation;
+  uint8_t screen_width = portrait_mode ? kIOVideoHeight : kIOVideoWidth;
+  this->vram[x + y * screen_width] = this->brush_body_color;
 }
 
 }  // namespace M6502
