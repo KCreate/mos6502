@@ -25,16 +25,16 @@
  * SOFTWARE.
  */
 
-#include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
+#include <SFML/Window.hpp>
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
+#include <queue>
+#include <shared_mutex>
 #include <string>
 #include <thread>
-#include <shared_mutex>
 #include <vector>
-#include <queue>
-#include <condition_variable>
 
 #include "busdevice.h"
 

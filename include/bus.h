@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#include <cstdint>
 #include <atomic>
+#include <cstdint>
 
 #include "busdevice.h"
 
@@ -79,7 +79,6 @@ public:
   }
 
 private:
-
   // Attached devices
   BusDevice* RAM = nullptr;
   BusDevice* IO = nullptr;

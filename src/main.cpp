@@ -25,15 +25,15 @@
  * SOFTWARE.
  */
 
+#include <chrono>
 #include <iostream>
 #include <thread>
-#include <chrono>
 
-#include "cpu.h"
 #include "bus.h"
+#include "cpu.h"
+#include "iochip.h"
 #include "rammodule.h"
 #include "rommodule.h"
-#include "iochip.h"
 
 using namespace M6502;
 
@@ -59,47 +59,47 @@ int main() {
   //
   // Example used: vram_simple_copy.asm
   uint8_t code[] = {
-                                // .def ADDR_DRAW_METHOD 0x490B
-                                // .def ADDR_DRAW_ARG1 0x490C
-                                // .def ADDR_DRAW_ARG2 0x490D
-                                // .def ADDR_DRAW_ARG3 0x490E
-                                // .def ADDR_DRAW_ARG4 0x490F
-                                // .def DRAW_RECTANGLE 0x00
-                                // .def BRUSH_SET_BODY 0x03
-                                // .def BRUSH_SET_OUTLINE 0x04
-                                // .def RED #$0xE0
-                                // .def GREEN #$0x1C
-                                // .RST
-                                //
-                                // ; set the brush color to red
-    0xA9, 0xE0,                 // 4910:  LDA RED
-    0x8D, 0x0C, 0x49,           // 4912:  STA ADDR_DRAW_ARG1
-    0xA9, 0x03,                 // 4915:  LDA BRUSH_SET_BODY
-    0x8D, 0x0B, 0x49,           // 4917:  STA ADDR_DRAW_METHOD
-    0xA9, 0x1C,                 // 491A:  LDA GREEN
-    0x8D, 0x0C, 0x49,           // 491C:  STA ADDR_DRAW_ARG1
-    0xA9, 0x04,                 // 491F:  LDA BRUSH_SET_OUTLINE
-    0x8D, 0x0B, 0x49,           // 4921:  STA ADDR_DRAW_METHOD
-                                //
-                                // ; initialize X axis counter
-                                //
-                                // .XRESET
-    0xA2, 0x00,                 // 4924:  LDX #$00
-                                //
-                                // ; draw the rectangle
-    0x8E, 0x0C, 0x49,           // 4926:  STX ADDR_DRAW_ARG1
-    0xA9, 0x08,                 // 4929:  LDA #$08
-    0x8D, 0x0D, 0x49,           // 492B:  STA ADDR_DRAW_ARG2
-    0xA9, 0x10,                 // 492E:  LDA #$10
-    0x8D, 0x0E, 0x49,           // 4930:  STA ADDR_DRAW_ARG3
-    0xA9, 0x14,                 // 4933:  LDA #$14
-    0x8D, 0x0F, 0x49,           // 4935:  STA ADDR_DRAW_ARG4
-    0xA9, 0x00,                 // 4938:  LDA DRAW_RECTANGLE
-    0x8D, 0x0B, 0x49,           // 493A:  STA ADDR_DRAW_METHOD
-    0xE8,                       // 493D:  INX
-                                // 493E:  CPX #$2F
-                                // 4940:  BCS .XRESET
-    0x4C, 0x26, 0x49            //   JMP .RST
+      // .def ADDR_DRAW_METHOD 0x490B
+      // .def ADDR_DRAW_ARG1 0x490C
+      // .def ADDR_DRAW_ARG2 0x490D
+      // .def ADDR_DRAW_ARG3 0x490E
+      // .def ADDR_DRAW_ARG4 0x490F
+      // .def DRAW_RECTANGLE 0x00
+      // .def BRUSH_SET_BODY 0x03
+      // .def BRUSH_SET_OUTLINE 0x04
+      // .def RED #$0xE0
+      // .def GREEN #$0x1C
+      // .RST
+      //
+      // ; set the brush color to red
+      0xA9, 0xE0,        // 4910:  LDA RED
+      0x8D, 0x0C, 0x49,  // 4912:  STA ADDR_DRAW_ARG1
+      0xA9, 0x03,        // 4915:  LDA BRUSH_SET_BODY
+      0x8D, 0x0B, 0x49,  // 4917:  STA ADDR_DRAW_METHOD
+      0xA9, 0x1C,        // 491A:  LDA GREEN
+      0x8D, 0x0C, 0x49,  // 491C:  STA ADDR_DRAW_ARG1
+      0xA9, 0x04,        // 491F:  LDA BRUSH_SET_OUTLINE
+      0x8D, 0x0B, 0x49,  // 4921:  STA ADDR_DRAW_METHOD
+                         //
+                         // ; initialize X axis counter
+                         //
+                         // .XRESET
+      0xA2, 0x00,        // 4924:  LDX #$00
+                         //
+                         // ; draw the rectangle
+      0x8E, 0x0C, 0x49,  // 4926:  STX ADDR_DRAW_ARG1
+      0xA9, 0x08,        // 4929:  LDA #$08
+      0x8D, 0x0D, 0x49,  // 492B:  STA ADDR_DRAW_ARG2
+      0xA9, 0x10,        // 492E:  LDA #$10
+      0x8D, 0x0E, 0x49,  // 4930:  STA ADDR_DRAW_ARG3
+      0xA9, 0x14,        // 4933:  LDA #$14
+      0x8D, 0x0F, 0x49,  // 4935:  STA ADDR_DRAW_ARG4
+      0xA9, 0x00,        // 4938:  LDA DRAW_RECTANGLE
+      0x8D, 0x0B, 0x49,  // 493A:  STA ADDR_DRAW_METHOD
+      0xE8,              // 493D:  INX
+                         // 493E:  CPX #$2F
+                         // 4940:  BCS .XRESET
+      0x4C, 0x26, 0x49   //   JMP .RST
   };
   std::memcpy(rom.get_buffer(), code, sizeof(code));
 
