@@ -28,6 +28,7 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
+#include <cstring>
 
 #include "bus.h"
 #include "cpu.h"

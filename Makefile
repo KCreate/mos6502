@@ -27,12 +27,20 @@ CFLAGSPROD := -std=$(CPPSTD) \
 							-ferror-limit=1 \
 							-flto \
 							-ffast-math
-LFLAGS := -lm -framework sfml-window \
+LFLAGS_OSX := -lm -framework sfml-window \
 							-framework sfml-audio \
 							-framework sfml-graphics \
 							-framework sfml-system
+LFLAGS_LINUX := -lm -pthread -lsfml-window -lsfml-audio -lsfml-graphics -lsfml-system
 INC := -I libs -I $(INCLUDEDIR)
 LIB := -lstdc++
+OS = $(shell uname -s)
+
+ifeq ("$(OS)","Linux")
+	LFLAGS = $(LFLAGS_LINUX)
+else
+	LFLAGS = $(LFLAGS_OSX)
+endif
 
 $(TARGET): $(OBJECTS)
 	$(call colorecho, " Linking...", 2)
