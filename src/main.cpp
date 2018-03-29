@@ -100,7 +100,7 @@ int main() {
       0x8D, 0x0B, 0x49,  // 493A:  STA ADDR_DRAW_METHOD
       0xE8,              // 493D:  INX
       0xE0, 0x31,        // 493E:  CPX #$31
-      0xB0, 0x04,        // 4940:  BCS 0x4945
+      0xB0, 0x03,        // 4940:  BCS 0x4945
       0x4C, 0x26, 0x49,  // 4942:  JMP .DRAW
       0x4C, 0x24, 0x49   // 4945:  JMP .XRESET
   };
@@ -110,7 +110,6 @@ int main() {
 
   std::thread cpu_thread([&]() {
     cpu.start();
-    std::cout << "cpu halted" << std::endl;
   });
 
   io.start();
