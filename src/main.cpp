@@ -88,6 +88,7 @@ int main() {
       0xA2, 0x00,        // 4924:  LDX #$00
                          //
                          // ; draw the rectangle
+                         // .DRAW
       0x8E, 0x0C, 0x49,  // 4926:  STX ADDR_DRAW_ARG1
       0xA9, 0x08,        // 4929:  LDA #$08
       0x8D, 0x0D, 0x49,  // 492B:  STA ADDR_DRAW_ARG2
@@ -98,20 +99,22 @@ int main() {
       0xA9, 0x00,        // 4938:  LDA DRAW_RECTANGLE
       0x8D, 0x0B, 0x49,  // 493A:  STA ADDR_DRAW_METHOD
       0xE8,              // 493D:  INX
-                         // 493E:  CPX #$2F
-                         // 4940:  BCS .XRESET
-      0x4C, 0x26, 0x49   //   JMP .RST
+      0xE0, 0x31,        // 493E:  CPX #$31
+      0xB0, 0x04,        // 4940:  BCS 0x4945
+      0x4C, 0x26, 0x49,  // 4942:  JMP .DRAW
+      0x4C, 0x24, 0x49   // 4945:  JMP .XRESET
   };
   std::memcpy(rom.get_buffer(), code, sizeof(code));
 
   CPU cpu(&bus);
 
-  std::thread cpu_thread([&cpu, &io]() {
+  std::thread cpu_thread([&]() {
     cpu.start();
-    io.stop();
+    std::cout << "cpu halted" << std::endl;
   });
 
   io.start();
+  io.stop();
   cpu_thread.join();
 
   return 0;

@@ -28,6 +28,18 @@
 #include <chrono>
 #include <cstring>
 
+#ifdef LINUX
+#include <X11/Xlib.h>
+#ifdef None
+#  undef None
+#  define X11None 0L
+#  ifdef RevertToNone
+#    undef RevertToNone
+#    define RevertToNone (int)X11None
+#  endif
+#endif
+#endif
+
 #include "iochip.h"
 
 namespace M6502 {
@@ -54,10 +66,14 @@ IOChip::IOChip(uint16_t maddr) : BusDevice(maddr) {
 }
 
 IOChip::~IOChip() {
-  this->stop();
+  if (!this->shutdown) this->stop();
 }
 
 void IOChip::start() {
+#ifdef LINUX
+  XInitThreads();
+#endif
+
   this->shutdown = false;
 
   // Start the audio, clock and rendering threads
@@ -65,7 +81,7 @@ void IOChip::start() {
   this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel2));
   this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel3));
   this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock1));
-  this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock1));
+  this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock2));
   this->drawing_thread = std::thread(&IOChip::thread_drawing, this);
 
   // Create the window and the thread which handles all the drawing
@@ -84,8 +100,18 @@ void IOChip::start() {
 
   sf::Event event;
   while (!this->shutdown && this->main_window->isOpen()) {
-    while (this->main_window->waitEvent(event)) {
-      // TODO: Handle events
+    while (this->main_window->pollEvent(event)) {
+      switch (event.type) {
+        case sf::Event::Closed: {
+          this->main_window->close();
+          this->shutdown = true;
+          break;
+        }
+        default: {
+          // TODO: Handle events
+          break;
+        }
+      }
     }
   }
 }
@@ -93,6 +119,8 @@ void IOChip::start() {
 void IOChip::stop() {
   this->shutdown = true;
   this->render_thread.join();
+  this->condition_draw.notify_one();
+  this->drawing_thread.join();
   for (auto& t : this->clock_threads)
     t.join();
   for (auto& t : this->audio_threads)
@@ -116,8 +144,11 @@ void IOChip::thread_drawing() {
     std::unique_lock<std::mutex> l(this->draw_mutex);
     this->condition_draw.wait(l, [&]() {
       std::shared_lock<std::shared_mutex> lk(this->draw_pipeline_mutex);
-      return this->draw_pipeline.size() > 0;
+      return this->draw_pipeline.size() > 0 || this->shutdown;
     });
+
+    // Check if we should shutdown
+    if (this->shutdown) continue;
 
     // Fetch an instruction from the pipeline
     DrawInstruction instruction;
@@ -241,17 +272,14 @@ uint8_t IOChip::read(uint16_t address) {
 void IOChip::draw_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
   bool portrait_mode = this->control & kIOControlOrientation;
   uint8_t screen_width = portrait_mode ? kIOVideoHeight : kIOVideoWidth;
-
-  std::cout << "drawing rectangle: ";
-  std::cout << static_cast<unsigned int>(x) << ", ";
-  std::cout << static_cast<unsigned int>(y) << ", ";
-  std::cout << static_cast<unsigned int>(w) << ", ";
-  std::cout << static_cast<unsigned int>(h) << "\n";
+  uint8_t screen_height = portrait_mode ? kIOVideoWidth : kIOVideoHeight;
 
   // Draw the rectangle
   for (uint8_t by = 0; by < h; by++) {
+    if (by + y >= screen_height) continue;
     for (uint8_t bx = 0; bx < w; bx++) {
       uint8_t color = by == 0 || bx == 0 || by == h - 1 || bx == w - 1 ? this->brush_outline_color : brush_body_color;
+      if (bx + x >= screen_width) continue;
       uint32_t offset = (bx + x) + (by + y) * screen_width;
       if (offset >= 0x900) {
         continue;

@@ -31,15 +31,18 @@ LFLAGS_OSX := -lm -framework sfml-window \
 							-framework sfml-audio \
 							-framework sfml-graphics \
 							-framework sfml-system
-LFLAGS_LINUX := -lm -pthread -lsfml-window -lsfml-audio -lsfml-graphics -lsfml-system
+LFLAGS_LINUX := -lX11 -lm -lpthread -lsfml-window -lsfml-audio -lsfml-graphics -lsfml-system
 INC := -I libs -I $(INCLUDEDIR)
 LIB := -lstdc++
 OS = $(shell uname -s)
 
 ifeq ("$(OS)","Linux")
 	LFLAGS = $(LFLAGS_LINUX)
+	CFLAGS += -D LINUX
+	CFLAGS += -pthread
 else
 	LFLAGS = $(LFLAGS_OSX)
+	CFLAGS += -D OSX
 endif
 
 $(TARGET): $(OBJECTS)
