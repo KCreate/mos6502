@@ -41,6 +41,7 @@
 #endif
 
 #include "iochip.h"
+#include "bus.h"
 
 namespace M6502 {
 
@@ -105,6 +106,10 @@ void IOChip::start() {
         case sf::Event::Closed: {
           this->main_window->close();
           this->shutdown = true;
+          break;
+        }
+        case sf::Event::KeyPressed: {
+          this->bus->int_irq();
           break;
         }
         default: {

@@ -26,6 +26,7 @@
  */
 
 #include <cstdint>
+#include <atomic>
 #include <iostream>  // for std::ostream
 
 #include "bus.h"
@@ -156,6 +157,23 @@ public:
   // The CPU should just halt when it encounters an illegal
   // instruction
   bool illegal_opcode;
+
+  // Set to true if the CPU should shut down. This value is getting
+  // before the instruction decoding phase.
+  bool shutdown;
+
+  // Different flag for other threads to set to signal the CPU
+  // that an interrupt occured.
+  std::atomic<bool> int_irq;
+  std::atomic<bool> int_brk;
+  std::atomic<bool> int_nmi;
+  std::atomic<bool> int_res;
+
+  // Methods which handle different interrupts
+  void handle_irq();
+  void handle_brk();
+  void handle_nmi();
+  void handle_res();
 
   // Interact with the stack
   void stack_push_byte(uint8_t value);

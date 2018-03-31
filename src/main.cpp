@@ -73,40 +73,45 @@ int main() {
       // .RST
       //
       // ; set the brush color to red
-      0xA9, 0xE0,        // 4910:  LDA RED
-      0x8D, 0x0C, 0x49,  // 4912:  STA ADDR_DRAW_ARG1
-      0xA9, 0x03,        // 4915:  LDA BRUSH_SET_BODY
-      0x8D, 0x0B, 0x49,  // 4917:  STA ADDR_DRAW_METHOD
-      0xA9, 0x1C,        // 491A:  LDA GREEN
-      0x8D, 0x0C, 0x49,  // 491C:  STA ADDR_DRAW_ARG1
-      0xA9, 0x04,        // 491F:  LDA BRUSH_SET_OUTLINE
-      0x8D, 0x0B, 0x49,  // 4921:  STA ADDR_DRAW_METHOD
-                         //
-                         // ; initialize X axis counter
-                         //
-                         // .XRESET
-      0xA2, 0x00,        // 4924:  LDX #$00
-                         //
-                         // ; draw the rectangle
-                         // .DRAW
-      0x8E, 0x0C, 0x49,  // 4926:  STX ADDR_DRAW_ARG1
-      0xA9, 0x08,        // 4929:  LDA #$08
-      0x8D, 0x0D, 0x49,  // 492B:  STA ADDR_DRAW_ARG2
-      0xA9, 0x10,        // 492E:  LDA #$10
-      0x8D, 0x0E, 0x49,  // 4930:  STA ADDR_DRAW_ARG3
-      0xA9, 0x14,        // 4933:  LDA #$14
-      0x8D, 0x0F, 0x49,  // 4935:  STA ADDR_DRAW_ARG4
-      0xA9, 0x00,        // 4938:  LDA DRAW_RECTANGLE
-      0x8D, 0x0B, 0x49,  // 493A:  STA ADDR_DRAW_METHOD
-      0xE8,              // 493D:  INX
-      0xE0, 0x31,        // 493E:  CPX #$31
-      0xB0, 0x03,        // 4940:  BCS 0x4945
-      0x4C, 0x26, 0x49,  // 4942:  JMP .DRAW
-      0x4C, 0x24, 0x49   // 4945:  JMP .XRESET
+      0xA9, 0xE0,         // 4910:  LDA RED
+      0x8D, 0x0C, 0x49,   // 4912:  STA ADDR_DRAW_ARG1
+      0xA9, 0x03,         // 4915:  LDA BRUSH_SET_BODY
+      0x8D, 0x0B, 0x49,   // 4917:  STA ADDR_DRAW_METHOD
+      0xA9, 0x1C,         // 491A:  LDA GREEN
+      0x8D, 0x0C, 0x49,   // 491C:  STA ADDR_DRAW_ARG1
+      0xA9, 0x04,         // 491F:  LDA BRUSH_SET_OUTLINE
+      0x8D, 0x0B, 0x49,   // 4921:  STA ADDR_DRAW_METHOD
+                          //
+                          // ; initialize X axis counter
+                          //
+                          // .XRESET
+      0xA2, 0x00,         // 4924:  LDX #$00
+                          //
+                          // ; draw the rectangle
+                          // .DRAW
+      0x8E, 0x0C, 0x49,   // 4926:  STX ADDR_DRAW_ARG1
+      0xA9, 0x08,         // 4929:  LDA #$08
+      0x8D, 0x0D, 0x49,   // 492B:  STA ADDR_DRAW_ARG2
+      0xA9, 0x10,         // 492E:  LDA #$10
+      0x8D, 0x0E, 0x49,   // 4930:  STA ADDR_DRAW_ARG3
+      0xA9, 0x14,         // 4933:  LDA #$14
+      0x8D, 0x0F, 0x49,   // 4935:  STA ADDR_DRAW_ARG4
+      0xA9, 0x00,         // 4938:  LDA DRAW_RECTANGLE
+      0x8D, 0x0B, 0x49,   // 493A:  STA ADDR_DRAW_METHOD
+      0x4C, 0x26, 0x49,   // 493D:  JMP .DRAW
+                          //
+                          // .IRQ
+      0xE8,               // 4940:  INX
+      0x40                // 4941:  RTI
   };
   std::memcpy(rom.get_buffer(), code, sizeof(code));
 
+  // Write a jump to 0x4940 to the irq interrupt vector
+  rom.get_buffer()[kVecIRQ - kAddrROM] = 0x40;
+  rom.get_buffer()[kVecIRQ - kAddrROM + 1] = 0x49;
+
   CPU cpu(&bus);
+  bus.attach_cpu(&cpu);
 
   std::thread cpu_thread([&]() {
     cpu.start();

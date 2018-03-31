@@ -44,10 +44,10 @@ static constexpr size_t kSizeRAM = 0x4000;
 static constexpr size_t kSizeIO = 0x910;
 static constexpr size_t kSizeROM = 0xB6F0;
 
+// Forward declaration
+class CPU;
+
 // Abstraction of a bus attached to the 6502 micrcontroller
-//
-// Right now the bus is only able to subdivide it's memory into 16kb parts.
-// These can be assigned to different devices
 class Bus {
 public:
   Bus() {
@@ -65,31 +65,21 @@ public:
   BusDevice* resolve_address_to_device(uint16_t address);
 
   // Attach devices to the different parts of the bus
-  inline void attach_ram(BusDevice* dev) {
-    this->RAM = dev;
-    dev->bus = this;
-  }
-  inline void attach_io(BusDevice* dev) {
-    this->IO = dev;
-    dev->bus = this;
-  }
-  inline void attach_rom(BusDevice* dev) {
-    this->ROM = dev;
-    dev->bus = this;
-  }
+  void attach_cpu(CPU* cpu);
+  void attach_ram(BusDevice* dev);
+  void attach_io(BusDevice* dev);
+  void attach_rom(BusDevice* dev);
+
+  // Interrupts
+  void int_irq();
+  void int_nmi();
+  void int_res();
 
 private:
   // Attached devices
+  CPU* cpu;
   BusDevice* RAM = nullptr;
   BusDevice* IO = nullptr;
   BusDevice* ROM = nullptr;
-
-  // Interrupt lines
-  //
-  // These are meant to be polled by the CPU every so often and service them
-  // accordingly.
-  std::atomic<bool> irq_active;
-  std::atomic<bool> nmi_active;
-  std::atomic<bool> rst_active;
 };
 }  // namespace M6502

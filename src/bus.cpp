@@ -26,6 +26,7 @@
  */
 
 #include "bus.h"
+#include "cpu.h"
 
 namespace M6502 {
 
@@ -59,6 +60,38 @@ void Bus::write_word(uint16_t address, uint16_t value) {
     return;
   dev->write(address - dev->mapped_address, value & 0xFF);
   dev->write(address - dev->mapped_address + 1, (value >> 8) & 0xFF);
+}
+
+void Bus::attach_cpu(CPU* cpu) {
+  this->cpu = cpu;
+  cpu->bus = this;
+}
+
+void Bus::attach_ram(BusDevice* dev) {
+  this->RAM = dev;
+  dev->bus = this;
+}
+
+void Bus::attach_io(BusDevice* dev) {
+  this->IO = dev;
+  dev->bus = this;
+}
+
+void Bus::attach_rom(BusDevice* dev) {
+  this->ROM = dev;
+  dev->bus = this;
+}
+
+void Bus::int_irq() {
+  this->cpu->int_irq = true;
+}
+
+void Bus::int_nmi() {
+  this->cpu->int_nmi = true;
+}
+
+void Bus::int_res() {
+  this->cpu->int_res = true;
 }
 
 BusDevice* Bus::resolve_address_to_device(uint16_t address) {

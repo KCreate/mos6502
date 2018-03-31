@@ -35,6 +35,8 @@
 namespace M6502 {
 
 CPU::CPU(Bus* b) : bus(b) {
+  bus->attach_cpu(this);
+
   Instruction instruction;
 
   // Prefill dispatch table with illegal opcode handlers
@@ -43,6 +45,14 @@ CPU::CPU(Bus* b) : bus(b) {
   for (int i = 0; i < 256; i++) {
     this->dispatch_table[i] = instruction;
   }
+
+  // Initialize internal status fields
+  this->illegal_opcode = false;
+  this->shutdown = false;
+  this->int_irq = false;
+  this->int_brk = false;
+  this->int_nmi = false;
+  this->int_res = false;
 
   // Fill all valid opcodes
   //
@@ -216,22 +226,66 @@ CPU::CPU(Bus* b) : bus(b) {
   DEFINE_OPCODE(0xFD, sbc, x_indexed);
   DEFINE_OPCODE(0xFE, inc, x_indexed);
 
-  this->interrupt_reset();
+  this->handle_res();
 }
 
 void CPU::start() {
   // Run instructions until we encounter an illegal one
   // In that case we just return and let the caller
   // decide what he wants to do
-  while (!this->illegal_opcode) {
+  while (!this->shutdown && !this->illegal_opcode) {
     this->cycle();
   }
 }
 
 void CPU::cycle() {
+
+  // Check if there was an interrupt
+  if (!this->I) {
+    if (this->int_irq) this->handle_irq();
+    if (this->int_brk) this->handle_brk();
+  }
+  if (this->int_nmi) this->handle_nmi();
+  if (this->int_res) this->handle_res();
+
   uint8_t opcode = this->bus->read_byte(this->PC++);
   Instruction instruction = this->dispatch_table[opcode];
   this->exec_instruction(instruction);
+}
+
+void CPU::handle_irq() {
+  this->int_irq = false;
+  this->stack_push_word(this->PC);
+  this->stack_push_byte(this->STATUS);
+  this->I = true;
+  this->PC = this->bus->read_word(kVecIRQ);
+}
+
+void CPU::handle_brk() {
+  this->int_brk = false;
+  this->stack_push_word(this->PC);
+  this->stack_push_byte(this->STATUS | kMaskBreak);
+  this->I = true;
+  this->PC = this->bus->read_word(kVecBRK);
+}
+
+void CPU::handle_nmi() {
+  this->int_nmi = false;
+  this->stack_push_word(this->PC);
+  this->stack_push_byte(this->STATUS);
+  this->I = true;
+  this->PC = this->bus->read_word(kVecNMI);
+}
+
+void CPU::handle_res() {
+  this->int_res = false;
+  this->A = 0x00;
+  this->X = 0x00;
+  this->Y = 0x00;
+  this->PC = this->bus->read_word(kVecRES);
+  this->SP = kStackReset;
+  this->STATUS = kMaskConstant;
+  this->illegal_opcode = false;
 }
 
 void CPU::dump_state(std::ostream& out) {
@@ -248,16 +302,6 @@ void CPU::dump_state(std::ostream& out) {
   out << "Status Register: " << static_cast<unsigned int>(this->STATUS) << '\n';
 
   out << std::dec;
-}
-
-void CPU::interrupt_reset() {
-  this->A = 0x00;
-  this->X = 0x00;
-  this->Y = 0x00;
-  this->PC = this->bus->read_word(kVecRES);
-  this->SP = kStackReset;
-  this->STATUS = kMaskConstant;
-  this->illegal_opcode = false;
 }
 
 void CPU::exec_instruction(Instruction instruction) {
@@ -352,8 +396,8 @@ uint8_t CPU::stack_pop_byte() {
 }
 
 uint16_t CPU::stack_pop_word() {
-  uint8_t hi = this->stack_pop_byte();
   uint8_t lo = this->stack_pop_byte();
+  uint8_t hi = this->stack_pop_byte();
   uint16_t result = lo | (hi << 8);
   return result;
 }
@@ -450,10 +494,7 @@ void CPU::op_bpl(uint16_t src) {
 
 void CPU::op_brk(uint16_t) {
   this->PC++;
-  this->stack_push_word(this->PC);
-  this->stack_push_byte(this->STATUS | kMaskBreak);
-  this->I = true;
-  this->PC = this->bus->read_word(kVecBRK);
+  this->handle_brk();
 }
 
 void CPU::op_bvc(uint16_t src) {
@@ -695,7 +736,7 @@ void CPU::op_ror_acc(uint16_t) {
 
 void CPU::op_rti(uint16_t) {
   this->STATUS = this->stack_pop_byte() | kMaskConstant;
-  this->PC = this->stack_pop_word() + 1;
+  this->PC = this->stack_pop_word();
 }
 
 void CPU::op_rts(uint16_t) {
