@@ -25,6 +25,8 @@
  * SOFTWARE.
  */
 
+#include <thread>
+
 #include "cpu.h"
 
 #define DEFINE_OPCODE(HEXCODE, OPNAME, ADDRMODE) \
@@ -239,14 +241,27 @@ void CPU::start() {
 }
 
 void CPU::cycle() {
-
   // Check if there was an interrupt
   if (!this->I) {
-    if (this->int_irq) this->handle_irq();
-    if (this->int_brk) this->handle_brk();
+    if (this->int_irq) {
+      this->handle_irq();
+    }
   }
-  if (this->int_nmi) this->handle_nmi();
-  if (this->int_res) this->handle_res();
+
+  if (this->int_nmi) {
+    this->handle_nmi();
+  }
+  if (this->int_res) {
+    this->handle_res();
+  }
+
+  // For some reason, a sleep of 1 microsecond (?!) improves performance
+  // considerably, this may have something to do with other threads, mainly
+  // the drawing and rendering threads, not getting enough cpu time and a sleep
+  // at this point will yield control to them more often.
+  //
+  // Since this emulator isn't really performance focused, this is okay.
+  std::this_thread::sleep_for(std::chrono::microseconds(1));
 
   uint8_t opcode = this->bus->read_byte(this->PC++);
   Instruction instruction = this->dispatch_table[opcode];
