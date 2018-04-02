@@ -82,7 +82,7 @@ void IOChip::start() {
   this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel2));
   this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel3));
   this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock1));
-  this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock2));
+  //this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock2));
   this->drawing_thread = std::thread(&IOChip::thread_drawing, this);
 
   // Create the window and the thread which handles all the drawing
@@ -145,7 +145,10 @@ void IOChip::thread_clock(uint16_t source) {
   uint8_t clock_source = 0;
   while (!this->shutdown) {
     clock_source = this->memory[source];
-    if (!clock_source) std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    if (!clock_source) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      continue;
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<unsigned int>(5) * clock_source));
     this->memory[kIOEventType] = source == kIOClock1 ? kIOEventClock1 : kIOEventClock2;
     this->bus->int_irq();

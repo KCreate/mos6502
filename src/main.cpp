@@ -60,61 +60,49 @@ int main() {
   //
   // Example used: vram_simple_copy.asm
   uint8_t code[] = {
-      // .def ADDR_DRAW_METHOD 0x490B
-      // .def ADDR_DRAW_ARG1 0x490C
-      // .def ADDR_DRAW_ARG2 0x490D
-      // .def ADDR_DRAW_ARG3 0x490E
-      // .def ADDR_DRAW_ARG4 0x490F
-      // .def DRAW_RECTANGLE 0x00
-      // .def BRUSH_SET_BODY 0x03
-      // .def BRUSH_SET_OUTLINE 0x04
-      // .def RED #$0xE0
-      // .def GREEN #$0x1C
-      // .RST
-      //
-      // ; set the brush color to red
-      0xA9, 0xE0,         // 4910:  LDA RED
-      0x8D, 0x0C, 0x49,   // 4912:  STA ADDR_DRAW_ARG1
-      0xA9, 0x03,         // 4915:  LDA BRUSH_SET_BODY
-      0x8D, 0x0B, 0x49,   // 4917:  STA ADDR_DRAW_METHOD
-      0xA9, 0x1C,         // 491A:  LDA GREEN
-      0x8D, 0x0C, 0x49,   // 491C:  STA ADDR_DRAW_ARG1
-      0xA9, 0x04,         // 491F:  LDA BRUSH_SET_OUTLINE
-      0x8D, 0x0B, 0x49,   // 4921:  STA ADDR_DRAW_METHOD
-                          //
-                          // ; initialize X axis counter
-                          //
-                          // .XRESET
-      0xA2, 0x00,         // 4924:  LDX #$00
-                          //
-                          // ; draw the rectangle
-                          // .DRAW
-      0x8E, 0x0C, 0x49,   // 4926:  STX ADDR_DRAW_ARG1
-      0xA9, 0x08,         // 4929:  LDA #$08
-      0x8D, 0x0D, 0x49,   // 492B:  STA ADDR_DRAW_ARG2
-      0xA9, 0x10,         // 492E:  LDA #$10
-      0x8D, 0x0E, 0x49,   // 4930:  STA ADDR_DRAW_ARG3
-      0xA9, 0x14,         // 4933:  LDA #$14
-      0x8D, 0x0F, 0x49,   // 4935:  STA ADDR_DRAW_ARG4
-      0xA9, 0x00,         // 4938:  LDA DRAW_RECTANGLE
-      0x8D, 0x0B, 0x49,   // 493A:  STA ADDR_DRAW_METHOD
-      0x4C, 0x26, 0x49,   // 493D:  JMP .DRAW
-                          //
-                          // .IRQ
-      0xE8,               // 4940:  INX
-      0x40                // 4941:  RTI
+                              //      .RST
+    0xA9, 0x0A,               // 4910:  LDA #$0A      ; 1000 milliseconds
+    0x8D, 0x06, 0x49,         // 4912:  STA 0x4906    ; ADDR_CLOCK1
+                              //
+    0xA9, 0xE0,               // 4915:  LDA #$E0      ; Set the brush color to red
+    0x8D, 0x0C, 0x49,         // 4917:  STA 0x490C    ; ADDR_DRAW_ARG1
+    0xA9, 0x03,               // 491A:  LDA #$03      ; BRUSH_SET_BODY
+    0x8D, 0x0B, 0x49,         // 491C:  STA 0x490B    ; ADDR_DRAW_METHOD
+                              //
+    0xA9, 0x03,               // 491F:  LDA #$03      ; Set the outline color to blue
+    0x8D, 0x0C, 0x49,         // 4921:  STA 0x490C    ; ADDR_DRAW_ARG1
+    0xA9, 0x04,               // 4924:  LDA #$04      ; BRUSH_SET_OUTLINE
+    0x8D, 0x0B, 0x49,         // 4926:  STA 0x490B    ; ADDR_DRAW_METHOD
+                              //
+                              //      .DRAW
+    0x8E, 0x0C, 0x49,         // 4929:  STX 0x490C    ; x coordinate -> ADDR_DRAW_ARG1
+    0xA9, 0x08,               // 492C:  LDA #$08      ; y coordinate -> ADDR_DRAW_ARG2
+    0x8D, 0x0D, 0x49,         // 492E:  STA 0x490D
+    0xA9, 0x10,               // 4931:  LDA #$10      ; width -> ADDR_DRAW_ARG3
+    0x8D, 0x0E, 0x49,         // 4933:  STA 0x490E
+    0xA9, 0x14,               // 4936:  LDA #$14      ; height -> ADDR_DRAW_ARG4
+    0x8D, 0x0F, 0x49,         // 4938:  STA 0x490F
+    0xA9, 0x00,               // 493B:  LDA #$00      ; DRAW_RECTANGLE -> ADDR_DRAW_METHOD
+    0x8D, 0x0B, 0x49,         // 493D:  STA 0x490B
+    0x4C, 0x29, 0x49,         // 4940:  JMP .DRAW
+                              //
+                              //      .IRQ
+    0xE8,                     // 4943:  INX
+    0x40,                     // 4944:  RTI
   };
   std::memcpy(rom.get_buffer(), code, sizeof(code));
 
-  // Write a jump to 0x4940 to the irq interrupt vector
-  rom.get_buffer()[kVecIRQ - kAddrROM] = 0x40;
+  // Hook up IRQ interrupt handler
+  rom.get_buffer()[kVecIRQ - kAddrROM] = 0x43;
   rom.get_buffer()[kVecIRQ - kAddrROM + 1] = 0x49;
 
   CPU cpu(&bus);
   bus.attach_cpu(&cpu);
 
   std::thread cpu_thread([&]() {
+    cpu.dump_state(std::cout);
     cpu.start();
+    std::cout << "cpu halted" << std::endl;
   });
 
   io.start();
