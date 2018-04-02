@@ -6,16 +6,15 @@
 .def ILLEGAL_OPCODE 0xFF
 
 .RST
-  LDX #$00      ; initialize counter variable
-  LDA #$1C      ; initialize template variable
+  ldx #$00      ; initialize counter variable
+  lda #$1C      ; initialize template variable
 
 .HEAD
-  STA VRAM, X   ; copy the template byte to VRAM + counter
-  CPX #$FF      ; if the counter variable has reached 0xFF
-  BEQ .END      ; we jump to the end
-  INX           ; increment the counter
-  JMP .HEAD     ; jump back to the loop condition
+  sta VRAM, x   ; copy the template byte to VRAM + counter
+  cpx #$FF      ; if the counter variable has reached 0xFF
+  beq .END      ; we jump to the end
+  inx           ; increment the counter
+  jmp .HEAD     ; jump back to the loop condition
 .END
-  NOP
-  JMP .END      ; endless loop for testing purposes
-  ILLEGAL_OPCODE
+  nop
+  jmp .END      ; endless loop for testing purposes

@@ -22,41 +22,41 @@
 .RST
 
   ; set the brush color to red
-  LDA RED
-  STA ADDR_DRAW_ARG1
-  LDA BRUSH_SET_BODY
-  STA ADDR_DRAW_METHOD
+  lda RED
+  sta ADDR_DRAW_ARG1
+  lda BRUSH_SET_BODY
+  sta ADDR_DRAW_METHOD
 
   ; draw the rectangle
-  LDA #$10              ; x coordinate
-  STA ADDR_DRAW_ARG1
-  LDA #$08              ; y coordinate
-  STA ADDR_DRAW_ARG2
-  LDA #$10              ; width
-  STA ADDR_DRAW_ARG3
-  LDA #$26              ; height
-  STA ADDR_DRAW_ARG4
-  LDA DRAW_RECTANGLE
-  STA ADDR_DRAW_METHOD
+  lda #$10              ; x coordinate
+  sta ADDR_DRAW_ARG1
+  lda #$08              ; y coordinate
+  sta ADDR_DRAW_ARG2
+  lda #$10              ; width
+  sta ADDR_DRAW_ARG3
+  lda #$26              ; height
+  sta ADDR_DRAW_ARG4
+  lda DRAW_RECTANGLE
+  sta ADDR_DRAW_METHOD
 
   ; set the brush color to green
-  LDA GREEN
-  STA ADDR_DRAW_ARG1
-  LDA BRUSH_SET_BODY
-  STA ADDR_DRAW_METHOD
+  lda GREEN
+  sta ADDR_DRAW_ARG1
+  lda BRUSH_SET_BODY
+  sta ADDR_DRAW_METHOD
 
   ; draw the rectangle
-  LDA #$20              ; x coordinate
-  STA ADDR_DRAW_ARG1
-  LDA #$08              ; y coordinate
-  STA ADDR_DRAW_ARG2
-  LDA #$10              ; width
-  STA ADDR_DRAW_ARG3
-  LDA #$26              ; height
-  STA ADDR_DRAW_ARG4
-  LDA DRAW_RECTANGLE
-  STA ADDR_DRAW_METHOD
+  lda #$20              ; x coordinate
+  sta ADDR_DRAW_ARG1
+  lda #$08              ; y coordinate
+  sta ADDR_DRAW_ARG2
+  lda #$10              ; width
+  sta ADDR_DRAW_ARG3
+  lda #$26              ; height
+  sta ADDR_DRAW_ARG4
+  lda DRAW_RECTANGLE
+  sta ADDR_DRAW_METHOD
 
 .END
-  NOP
-  JMP .END
+  nop
+  jmp .END

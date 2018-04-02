@@ -24,35 +24,35 @@
 .RST
 
   ; setup the clock to pulse every 1000 milliseconds
-  LDA #$C8
-  STA ADDR_CLOCK1
+  lda #$C8
+  sta ADDR_CLOCK1
 
   ; set the brush color to red
-  LDA RED
-  STA ADDR_DRAW_ARG1
-  LDA BRUSH_SET_BODY
-  STA ADDR_DRAW_METHOD
+  lda RED
+  sta ADDR_DRAW_ARG1
+  lda BRUSH_SET_BODY
+  sta ADDR_DRAW_METHOD
 
   ; set the outline color to blue
-  LDA BLUE
-  STA ADDR_DRAW_ARG1
-  LDA BRUSH_SET_BODY
-  STA_ADDR_DRAW_METHOD
+  lda BLUE
+  sta ADDR_DRAW_ARG1
+  lda BRUSH_SET_BODY
+  sta ADDR_DRAW_METHOD
 
 ; Draw the rectangle
 .DRAW
-  STX ADDR_DRAW_ARG1    ; x coordinate
-  LDA #$08              ; y coordinate
-  STA ADDR_DRAW_ARG2
-  LDA #$10              ; width
-  STA ADDR_DRAW_ARG3
-  LDA #$14              ; height
-  STA ADDR_DRAW_ARG4
-  LDA DRAW_RECTANGLE
-  STA ADDR_DRAW_METHOD
-  JMP .DRAW
+  stx ADDR_DRAW_ARG1    ; x coordinate
+  lda #$08              ; y coordinate
+  sta ADDR_DRAW_ARG2
+  lda #$10              ; width
+  sta ADDR_DRAW_ARG3
+  lda #$14              ; height
+  sta ADDR_DRAW_ARG4
+  lda DRAW_RECTANGLE
+  sta ADDR_DRAW_METHOD
+  jmp .DRAW
 
 ; increase the X register each time the clock pulses
 .IRQ
-  INX
-  RTI
+  inx
+  rti
