@@ -31,17 +31,17 @@
 #ifdef LINUX
 #include <X11/Xlib.h>
 #ifdef None
-#  undef None
-#  define X11None 0L
-#  ifdef RevertToNone
-#    undef RevertToNone
-#    define RevertToNone (int)X11None
-#  endif
+#undef None
+#define X11None 0L
+#ifdef RevertToNone
+#undef RevertToNone
+#define RevertToNone (int)X11None
+#endif
 #endif
 #endif
 
-#include "iochip.h"
 #include "bus.h"
+#include "iochip.h"
 
 namespace M6502 {
 
@@ -67,7 +67,8 @@ IOChip::IOChip(uint16_t maddr) : BusDevice(maddr) {
 }
 
 IOChip::~IOChip() {
-  if (!this->shutdown) this->stop();
+  if (!this->shutdown)
+    this->stop();
 }
 
 void IOChip::start() {
@@ -82,7 +83,7 @@ void IOChip::start() {
   this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel2));
   this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel3));
   this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock1));
-  //this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock2));
+  // this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock2));
   this->drawing_thread = std::thread(&IOChip::thread_drawing, this);
 
   // Create the window and the thread which handles all the drawing
@@ -110,10 +111,14 @@ void IOChip::start() {
         }
         case sf::Event::KeyPressed: {
           uint8_t modifier_byte = 0x00;
-          if (event.key.alt) modifier_byte |= kIOKeyboardModifierAlt;
-          if (event.key.control) modifier_byte |= kIOKeyboardModifierControl;
-          if (event.key.shift) modifier_byte |= kIOKeyboardModifierShift;
-          if (event.key.system) modifier_byte |= kIOKeyboardModifierSystem;
+          if (event.key.alt)
+            modifier_byte |= kIOKeyboardModifierAlt;
+          if (event.key.control)
+            modifier_byte |= kIOKeyboardModifierControl;
+          if (event.key.shift)
+            modifier_byte |= kIOKeyboardModifierShift;
+          if (event.key.system)
+            modifier_byte |= kIOKeyboardModifierSystem;
           this->memory[kIOEventType] = kIOEventKeydown;
           this->memory[kIOKeyboardKeycode] = event.key.code;
           this->memory[kIOKeyboardModifiers] = modifier_byte;
@@ -172,7 +177,8 @@ void IOChip::thread_drawing() {
     });
 
     // Check if we should shutdown
-    if (this->shutdown) continue;
+    if (this->shutdown)
+      continue;
 
     // Fetch an instruction from the pipeline
     DrawInstruction instruction;
@@ -289,8 +295,7 @@ void IOChip::write(uint16_t address, uint8_t value) {
 }
 
 uint8_t IOChip::read(uint16_t address) {
-  std::cout << "read " << std::hex << address << std::dec << std::endl;
-  return 0;
+  return this->memory[address];
 }
 
 void IOChip::draw_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
@@ -300,14 +305,19 @@ void IOChip::draw_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
 
   // Draw the rectangle
   for (uint8_t by = 0; by < h; by++) {
-    if (by + y >= screen_height) continue;
+    if (by + y >= screen_height)
+      continue;
     for (uint8_t bx = 0; bx < w; bx++) {
-      uint8_t color = by == 0 || bx == 0 || by == h - 1 || bx == w - 1 ? this->brush_outline_color : brush_body_color;
-      if (bx + x >= screen_width) continue;
-      uint32_t offset = (bx + x) + (by + y) * screen_width;
-      if (offset >= 0x900) {
-        continue;
+      uint8_t color = 0x00;
+      if (by == 0 || bx == 0 || by == h - 1 || bx == w - 1) {
+        color = this->brush_outline_color;
+      } else {
+        color = this->brush_body_color;
       }
+
+      if (bx + x >= screen_width)
+        continue;
+      uint32_t offset = (bx + x) + (by + y) * screen_width;
       this->vram[offset] = color;
     }
   }

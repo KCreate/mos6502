@@ -262,7 +262,6 @@ void CPU::cycle() {
   //
   // Since this emulator isn't really performance focused, this is okay.
   std::this_thread::sleep_for(std::chrono::microseconds(1));
-
   uint8_t opcode = this->bus->read_byte(this->PC++);
   Instruction instruction = this->dispatch_table[opcode];
   this->exec_instruction(instruction);
@@ -593,12 +592,12 @@ void CPU::op_eor(uint16_t src) {
   this->A = operand;
 }
 
-void CPU::op_inc(uint16_t) {
-  uint8_t operand = this->X;
+void CPU::op_inc(uint16_t src) {
+  uint8_t operand = this->bus->read_byte(src);
   operand = (operand + 1) % 256;
   this->S = operand & 0x80;
   this->Z = !operand;
-  this->X = operand;
+  this->bus->write_byte(src, operand);
 }
 
 void CPU::op_inx(uint16_t) {
@@ -610,11 +609,11 @@ void CPU::op_inx(uint16_t) {
 }
 
 void CPU::op_iny(uint16_t) {
-  uint8_t operand = this->X;
+  uint8_t operand = this->Y;
   operand = (operand + 1) % 256;
   this->S = operand & 0x80;
   this->Z = !operand;
-  this->X = operand;
+  this->Y = operand;
 }
 
 void CPU::op_jmp(uint16_t src) {
