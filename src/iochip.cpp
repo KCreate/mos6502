@@ -109,6 +109,14 @@ void IOChip::start() {
           break;
         }
         case sf::Event::KeyPressed: {
+          uint8_t modifier_byte = 0x00;
+          if (event.key.alt) modifier_byte |= kIOKeyboardModifierAlt;
+          if (event.key.control) modifier_byte |= kIOKeyboardModifierControl;
+          if (event.key.shift) modifier_byte |= kIOKeyboardModifierShift;
+          if (event.key.system) modifier_byte |= kIOKeyboardModifierSystem;
+          this->memory[kIOEventType] = kIOEventKeydown;
+          this->memory[kIOKeyboardKeycode] = event.key.code;
+          this->memory[kIOKeyboardModifiers] = modifier_byte;
           this->bus->int_irq();
           break;
         }

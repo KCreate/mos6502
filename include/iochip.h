@@ -93,10 +93,27 @@ static constexpr uint16_t kIOTextModeForegroundColor = 0x902;
 // Event payload data
 //
 // Interrupts store their payload in these memory locations
+//
+// The keyboard modifier byte is laid out as follows:
+//
+// Modifier: 0000 0 0 0 0
+//           ^    ^ ^ ^ ^
+//           |    | | | +- Alt key pressed?
+//           |    | | +--- Control key pressed?
+//           |    | +----- Shift key pressed?
+//           |    +------- System key pressed?
+//           +------------ Unused bits
 static constexpr uint16_t kIOEventType = 0x903;
 static constexpr uint16_t kIOKeyboardKeycode = 0x904;
+static constexpr uint16_t kIOKeyboardModifiers = 0x905;
 static constexpr uint16_t kIOMouseXCoord = 0x904;
 static constexpr uint16_t kIOMouseYCoord = 0x905;
+
+// Masks for the keyboard modifier byte
+static constexpr uint8_t kIOKeyboardModifierAlt = 0x01;
+static constexpr uint8_t kIOKeyboardModifierControl = 0x02;
+static constexpr uint8_t kIOKeyboardModifierShift = 0x04;
+static constexpr uint8_t kIOKeyboardModifierSystem = 0x08;
 
 // Hardware clocks
 //
