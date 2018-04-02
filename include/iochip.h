@@ -102,16 +102,14 @@ static constexpr uint16_t kIOMouseYCoord = 0x905;
 //
 // The hardware clocks can interrupt the CPU at configurable intervals of time. When the value stored in these
 // memory locations is 0, the clocks are turned off. The minimum amount of time between clock pulses is
-// 5ms * f, where f is the value stored inside memory. Reading from a clock will yield you the amount
-// of 5ms intervals still left until the next clock pulse.
+// 5ms * f, where f is the value stored inside memory.
 //
 // Each clock interrupt sets an event type in the event type memory location so the CPU knows which clock fired.
 //
-// Clock: 0 0000000
-//        ^ ^
-//        | |
-//        | +- Fraction or amount of seconds
-//        +--- Toggle between fraction or seconds
+// Clock: 00000000
+//        ^
+//        |
+//        +- Amount of 5ms pauses
 static constexpr uint16_t kIOClock1 = 0x906;
 static constexpr uint16_t kIOClock2 = 0x907;
 

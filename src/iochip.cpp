@@ -141,7 +141,15 @@ void IOChip::stop() {
 void IOChip::thread_audio(uint16_t) {
 }
 
-void IOChip::thread_clock(uint16_t) {
+void IOChip::thread_clock(uint16_t source) {
+  uint8_t clock_source = 0;
+  while (!this->shutdown) {
+    clock_source = this->memory[source];
+    if (!clock_source) std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<unsigned int>(5) * clock_source));
+    this->memory[kIOEventType] = source == kIOClock1 ? kIOEventClock1 : kIOEventClock2;
+    this->bus->int_irq();
+  }
 }
 
 void IOChip::thread_drawing() {
