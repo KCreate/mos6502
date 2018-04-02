@@ -60,40 +60,70 @@ int main() {
   //
   // Example used: vram_simple_copy.asm
   uint8_t code[] = {
-                              //      .RST
-    0xA9, 0x0A,               // 4910:  LDA #$0A      ; 1000 milliseconds
-    0x8D, 0x06, 0x49,         // 4912:  STA 0x4906    ; ADDR_CLOCK1
-                              //
-    0xA9, 0xE0,               // 4915:  LDA #$E0      ; Set the brush color to red
-    0x8D, 0x0C, 0x49,         // 4917:  STA 0x490C    ; ADDR_DRAW_ARG1
-    0xA9, 0x03,               // 491A:  LDA #$03      ; BRUSH_SET_BODY
-    0x8D, 0x0B, 0x49,         // 491C:  STA 0x490B    ; ADDR_DRAW_METHOD
-                              //
-    0xA9, 0x03,               // 491F:  LDA #$03      ; Set the outline color to blue
-    0x8D, 0x0C, 0x49,         // 4921:  STA 0x490C    ; ADDR_DRAW_ARG1
-    0xA9, 0x04,               // 4924:  LDA #$04      ; BRUSH_SET_OUTLINE
-    0x8D, 0x0B, 0x49,         // 4926:  STA 0x490B    ; ADDR_DRAW_METHOD
-                              //
-                              //      .DRAW
-    0x8E, 0x0C, 0x49,         // 4929:  STX 0x490C    ; x coordinate -> ADDR_DRAW_ARG1
-    0xA9, 0x08,               // 492C:  LDA #$08      ; y coordinate -> ADDR_DRAW_ARG2
-    0x8D, 0x0D, 0x49,         // 492E:  STA 0x490D
-    0xA9, 0x10,               // 4931:  LDA #$10      ; width -> ADDR_DRAW_ARG3
-    0x8D, 0x0E, 0x49,         // 4933:  STA 0x490E
-    0xA9, 0x14,               // 4936:  LDA #$14      ; height -> ADDR_DRAW_ARG4
-    0x8D, 0x0F, 0x49,         // 4938:  STA 0x490F
-    0xA9, 0x00,               // 493B:  LDA #$00      ; DRAW_RECTANGLE -> ADDR_DRAW_METHOD
-    0x8D, 0x0B, 0x49,         // 493D:  STA 0x490B
-    0x4C, 0x29, 0x49,         // 4940:  JMP .DRAW
-                              //
-                              //      .IRQ
-    0xE8,                     // 4943:  INX
-    0x40,                     // 4944:  RTI
+                                // 4010:  .RST
+    0xA9, 0xE0,                 //   lda #$E0
+    0x8D, 0x0C, 0x49,           //   sta 0x490C
+    0xA9, 0x03,                 //   lda #$03
+    0x8D, 0x0B, 0x49,           //   sta 0x490B
+    0xA9, 0x03,                 //   lda #$03
+    0x8D, 0x0C, 0x49,           //   sta 0x490C
+    0xA9, 0x04,                 //   lda 0x04
+    0x8D, 0x0B, 0x49,           //   sta 0x490B
+                                //
+                                // 4924:  .DRAWBEGIN
+    0xA9, 0x10,                 //   lda #$10
+    0x8D, 0x0E, 0x49,           //   sta 0x490E
+    0x8D, 0x0F, 0x49,           //   sta 0x490F
+    0xA9, 0x00,                 //   lda #$00
+                                // 492E:  .DRAWLOOP
+    0x8E, 0x0C, 0x49,           //   stx 0x490C
+    0x8C, 0x0D, 0x49,           //   sty 0x490D
+    0x8D, 0x0B, 0x49,           //   sta 0x490B
+    0x4C, 0x2E, 0x49,           //   jmp .DRAWLOOP
+                                //
+                                // 493A:  .IRQ
+    0x48,                       //   pha
+    0xAD, 0x03, 0x49,           //   lda 0x4903
+    0xC9, 0x01,                 //   cmp #$01
+    0xD0, 0x0B,                 //   bne .RESTORE_AND_EXIT
+    0xAD, 0x04, 0x49,           //   lda 0x4904
+    0xC9, 0x16,                 //   cmp #$16
+    0xF0, 0x0E,                 //   beq .HANDLE_W_KEY
+    0xC9, 0x00,                 //   cmp #$00
+    0xF0, 0x0D,                 //   beq .HANDLE_A_KEY
+    0xC9, 0x12,                 //   cmp #$12
+    0xF0, 0x0C,                 //   beq .HANDLE_S_KEY
+    0xC9, 0x03,                 //   cmp #$03
+    0xF0, 0x0B,                 //   beq .HANDLE_D_KEY
+                                //
+                                // 4955:  .RESTORE_AND_EXIT
+    0x68,                       //   pla
+    0x40,                       //   rti
+                                //
+                                // 4957:  .HANDLE_W_KEY
+    0x68,                       //   pla
+    0x88,                       //   dey
+    0x40,                       //   rti
+                                //
+                                // 495A:  .HANDLE_A_KEY
+    0x68,                       //   pla
+    0xCA,                       //   dex
+    0x40,                       //   rti
+                                //
+                                // 495D:  .HANDLE_S_KEY
+    0x68,                       //   pla
+    0xC8,                       //   iny
+    0x40,                       //   rti
+                                //
+                                // 4960:  .HANDLE_D_KEY
+    0x68,                       //   pla
+    0xE8,                       //   inx
+    0x40                        //   rti
   };
   std::memcpy(rom.get_buffer(), code, sizeof(code));
 
   // Hook up IRQ interrupt handler
-  rom.get_buffer()[kVecIRQ - kAddrROM] = 0x43;
+  rom.get_buffer()[kVecIRQ - kAddrROM] = 0x3A;
   rom.get_buffer()[kVecIRQ - kAddrROM + 1] = 0x49;
 
   CPU cpu(&bus);

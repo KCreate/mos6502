@@ -25,66 +25,80 @@
 .def EVENT_KEYDOWN 0x01
 
 ; keyboard keycodes
+.def KEY_W 0x16
 .def KEY_A 0x00
+.def KEY_S 0x12
 .def KEY_D 0x03
 
 ; load at reset entry
 .RST
 
-  ; set the brush color to blue
+  ; set the body color to red
   lda RED
   sta ADDR_DRAW_ARG1
   lda BRUSH_SET_BODY
   sta ADDR_DRAW_METHOD
+
+  ; set the outline color to blue
+  lda BLUE
+  sta ADDR_DRAW_ARG1
   lda BRUSH_SET_OUTLINE
   sta_ADDR_DRAW_METHOD
 
 ; Drawing loop
 .DRAW
-  stx ADDR_DRAW_ARG1    ; x coordinate
-  lda #$10              ; y coordinate
-  sta ADDR_DRAW_ARG2
   lda #$10              ; width / height
   sta ADDR_DRAW_ARG3
   sta ADDR_DRAW_ARG4
   lda DRAW_RECTANGLE
+.DRAWLOOP
+  stx ADDR_DRAW_ARG1    ; x coordinate
+  sty ADDR_DRAW_ARG2    ; y coordinate
   sta ADDR_DRAW_METHOD
-  jmp .DRAW
+  jmp .DRAWLOOP
 
-; increase the X register each time the clock pulses
-; keycode A: 0x00
-; keycode D: 0x03
+; Move the rectangle with the WASD keys
 .IRQ
 
-  ; Backup the X register
-  txa
-  pha
+  ; Backup A register
+  PHA
 
   ; Check if this is a keyboard event
-  ldx ADDR_EVENT_TYPE
-  cpx EVENT_KEYDOWN
+  lda ADDR_EVENT_TYPE
+  cmp EVENT_KEYDOWN
   bne .RESTORE_AND_EXIT
 
   ; Check if either the A or D key were pressed
-  ldx ADDR_KEYBOARD_KEYCODE
-  cpx KEY_A
+  lda ADDR_KEYBOARD_KEYCODE
+  cmp KEY_W
+  beq .HANDLE_W_KEY
+  cmp KEY_A
   beq .HANDLE_A_KEY
-  cpx KEY_B
-  beq .HANDLE_B_KEY
+  cmp KEY_S
+  beq .HANDLE_D_KEY
+  cmp KEY_D
+  beq .HANDLE_D_KEY
 
 .RESTORE_AND_EXIT
-  pla
-  tax
+  PLA
+  rti
+
+.HANDLE_W_KEY
+  PLA
+  dey
   rti
 
 .HANDLE_A_KEY
-  pla
-  tax
+  PLA
   dex
   rti
 
-.HANDLE_B_KEY
-  pla
-  tax
+.HANDLE_S_KEY
+  PLA
+  iny
+  rti
+
+.HANDLE_D_KEY
+  PLA
   inx
   rti
