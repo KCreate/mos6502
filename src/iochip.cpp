@@ -214,8 +214,6 @@ void IOChip::thread_drawing() {
 }
 
 void IOChip::thread_render() {
-  using namespace std::chrono_literals;
-
   while (!this->shutdown && this->main_window->isOpen()) {
     // Check the control bytes for the configuration of the display
     bool portrait_mode = this->control & kIOControlOrientation;
@@ -227,9 +225,11 @@ void IOChip::thread_render() {
     //
     // TODO: Could this be made more efficient using a lock?
     if (window_hidden) {
-      std::this_thread::sleep_for(1s);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
       continue;
     }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(16));
 
     // These are the dimensions of the window we are drawing to
     // and of the brush that is used to paint the pixels.
