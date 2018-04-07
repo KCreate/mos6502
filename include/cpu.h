@@ -284,7 +284,7 @@ public:
   // |  Immediate     |   ADC #Oper           |    69   |    2    |
   // |  Zero Page     |   ADC Oper            |    65   |    2    |
   // |  Zero Page,X   |   ADC Oper,X          |    75   |    2    |
-  // |  Absolute      |   ADC Oper            |    60   |    3    |
+  // |  Absolute      |   ADC Oper            |    6D   |    3    |
   // |  Absolute,X    |   ADC Oper,X          |    70   |    3    |
   // |  Absolute,Y    |   ADC Oper,Y          |    79   |    3    |
   // |  (Indirect,X)  |   ADC (Oper,X)        |    61   |    2    |
