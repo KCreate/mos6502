@@ -7,22 +7,20 @@
 #include <vector>
 #include <cstdint>
 
-const unsigned SAMPLES = 44100;
+const unsigned SAMPLES = 1000;
 const unsigned SAMPLE_RATE = 44100;
 const unsigned AMPLITUDE = 30000;
 const double TWO_PI = 6.28318;
-const double increment = 440.0 / 44100;
+const double increment = 0.01;
 
-std::atomic<uint8_t> audio_channel_1 = 0;
-
-void sound_handler() {
+int main() {
   // The container of our raw data
   sf::Int16 raw[SAMPLES];
 
   // Create the data for the sine wave
   double x = 0;
   for (unsigned i = 0; i < SAMPLES; i++) {
-    raw[i] = AMPLITUDE * sin(x * TWO_PI);
+    raw[i] = AMPLITUDE * (sin(x * TWO_PI) >= 0.0 ? 1 : 0.5);
     x += increment;
   }
 
@@ -34,26 +32,11 @@ void sound_handler() {
   sf::Sound Sound;
   Sound.setBuffer(Buffer);
   Sound.setLoop(true);
-  Sound.setPitch(audio_channel_1);
+  Sound.setPitch(0.2);
   Sound.play();
 
-  while (1) {
-    sf::sleep(sf::milliseconds(10));
-    Sound.setPitch(static_cast<float>(audio_channel_1) / 16 * 2 + 0.2);
+  for (double p = 0.2; p < 1.4; p += 0.1) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    Sound.setPitch(p);
   }
-}
-
-int main() {
-  using namespace std::chrono_literals;
-
-  std::thread audio_thread(sound_handler);
-
-  while (true) {
-    std::this_thread::sleep_for(0.1s);
-    audio_channel_1 = (audio_channel_1 + 1) & 0x0F;
-  }
-
-  audio_thread.join();
-
-  return 0;
 }

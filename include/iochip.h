@@ -27,6 +27,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
+#include <SFML/Audio.hpp>
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
@@ -74,8 +75,8 @@ namespace M6502 {
 static std::string kIOVideoTitle = "6502 Microcontroller";
 static constexpr size_t kIOVideoWidth = 64;
 static constexpr size_t kIOVideoHeight = 36;
-static constexpr size_t kIOVideoScaleWidth = 20;
-static constexpr size_t kIOVideoScaleHeight = 20;
+static constexpr size_t kIOVideoScaleWidth = 7;
+static constexpr size_t kIOVideoScaleHeight = 7;
 static constexpr size_t kIOVideoModeWidth = kIOVideoWidth * kIOVideoScaleWidth;
 static constexpr size_t kIOVideoModeHeight = kIOVideoHeight * kIOVideoScaleHeight;
 static constexpr size_t kIOVRAMSize = kIOVideoWidth * kIOVideoHeight;
@@ -146,6 +147,28 @@ static constexpr uint16_t kIOClock2 = 0x907;
 static constexpr uint16_t kIOAudioChannel1 = 0x908;
 static constexpr uint16_t kIOAudioChannel2 = 0x909;
 static constexpr uint16_t kIOAudioChannel3 = 0x90A;
+
+// Masks for the audio channel
+static constexpr uint8_t kIOAudioChannelVolume = 0xC0;
+static constexpr uint8_t kIOAudioChannelWave = 0x30;
+static constexpr uint8_t kIOAudioChannelPitch = 0x0F;
+enum {
+  kIOAudioChannelVolume0 = 0,
+  kIOAudioChannelVolume25 = 1,
+  kIOAudioChannelVolume50 = 2,
+  kIOAudioChannelVolume100 = 3,
+  kIOAudioChannelWaveSine = 0,
+  kIOAudioChannelWaveSquare = 1,
+  kIOAudioChannelWaveSaw = 2,
+  kIOAudioChannelWaveTriangle = 3,
+};
+
+// Some constants related to how audio data is stored inside the chip
+static constexpr uint32_t kIOAudioSamples = 44100;
+static constexpr uint32_t kIOAudioSampleRate = 44100;
+static constexpr uint32_t kIOAudioAmplitude = 30000;
+static constexpr double kIOAudioTwoPi = 6.28318;
+static constexpr double kIOAudioSampleIncrement = 440.0 / 44100;
 
 // VRAM Access
 //
@@ -255,8 +278,18 @@ public:
   uint8_t read(uint16_t address);
 
 private:
-  // Starts an audio thread using a byte at a given offset
-  void thread_audio(uint16_t audio_offset);
+  // Prepares the audio buffers for the different wave functions
+  void load_audio_buffers();
+  sf::SoundBuffer audio_buffer_sine;
+  sf::SoundBuffer audio_buffer_square;
+  sf::SoundBuffer audio_buffer_saw;
+  sf::SoundBuffer audio_buffer_triangle;
+  sf::Sound audio_sound1;
+  sf::Sound audio_sound2;
+  sf::Sound audio_sound3;
+
+  // Update one of the currently playing sounds
+  void update_audio(uint16_t address, uint8_t value);
 
   // Starts a clock thread using a byte at a given offset
   void thread_clock(uint16_t clock_offset);
@@ -302,8 +335,7 @@ private:
   std::thread render_thread;
   std::thread drawing_thread;
   std::atomic<bool> shutdown;
-  std::vector<std::thread> clock_threads;
-  std::vector<std::thread> audio_threads;
+  std::vector<std::thread> worker_threads;
 
   // Rendering configuration
   std::atomic<bool> text_mode;

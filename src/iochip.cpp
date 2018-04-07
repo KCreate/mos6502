@@ -27,6 +27,7 @@
 
 #include <chrono>
 #include <cstring>
+#include <cmath>
 
 #ifdef LINUX
 #include <X11/Xlib.h>
@@ -76,14 +77,13 @@ void IOChip::start() {
   XInitThreads();
 #endif
 
+  this->load_audio_buffers();
+
   this->shutdown = false;
 
   // Start the audio, clock and rendering threads
-  this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel1));
-  this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel2));
-  this->audio_threads.push_back(std::thread(&IOChip::thread_audio, this, kIOAudioChannel3));
-  this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock1));
-  // this->clock_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock2));
+  this->worker_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock1));
+  // this->worker_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock2));
   this->drawing_thread = std::thread(&IOChip::thread_drawing, this);
 
   // Create the window and the thread which handles all the drawing
@@ -139,19 +139,39 @@ void IOChip::stop() {
   this->render_thread.join();
   this->condition_draw.notify_one();
   this->drawing_thread.join();
-  for (auto& t : this->clock_threads)
-    t.join();
-  for (auto& t : this->audio_threads)
+  for (auto& t : this->worker_threads)
     t.join();
 
   delete this->main_window;
 
-  this->clock_threads.clear();
-  this->audio_threads.clear();
+  this->worker_threads.clear();
   this->main_window = nullptr;
 }
 
-void IOChip::thread_audio(uint16_t) {
+void IOChip::load_audio_buffers() {
+  sf::Int16 raw[kIOAudioSamples];
+  double x;
+
+  // Generate sine wave data
+  x = 0;
+  for (uint32_t i = 0; i < kIOAudioSamples; i++) {
+    raw[i] = kIOAudioAmplitude * sin(x * kIOAudioTwoPi);
+    x += kIOAudioSampleIncrement;
+  }
+  this->audio_buffer_sine.loadFromSamples(raw, kIOAudioSamples, 1, kIOAudioSampleRate);
+
+  // Generate square wave data
+  x = 0;
+  for (uint32_t i = 0; i < kIOAudioSamples; i++) {
+    raw[i] = kIOAudioAmplitude * (sin(x * kIOAudioTwoPi) >= 0.0 ? 1 : 0.5);
+    x += kIOAudioSampleIncrement;
+  }
+  this->audio_buffer_square.loadFromSamples(raw, kIOAudioSamples, 1, kIOAudioSampleRate);
+
+  // TODO: Generate saw and triangle wave data
+  //       Right now we just load these buffers with square wave data
+  this->audio_buffer_saw.loadFromSamples(raw, kIOAudioSamples, 1, kIOAudioSampleRate);
+  this->audio_buffer_triangle.loadFromSamples(raw, kIOAudioSamples, 1, kIOAudioSampleRate);
 }
 
 void IOChip::thread_clock(uint16_t source) {
@@ -291,11 +311,62 @@ void IOChip::write(uint16_t address, uint8_t value) {
       this->condition_draw.notify_one();
       break;
     }
+    case kIOAudioChannel1:
+    case kIOAudioChannel2:
+    case kIOAudioChannel3: {
+      this->update_audio(address, value);
+      break;
+    }
   }
 }
 
 uint8_t IOChip::read(uint16_t address) {
   return this->memory[address];
+}
+
+void IOChip::update_audio(uint16_t address, uint8_t value) {
+
+  // Decode parameters
+  uint8_t volume = (value & kIOAudioChannelVolume) >> 6;
+  float volume_f = 0;
+  uint8_t wave = (value & kIOAudioChannelWave) >> 4;
+  float pitch = 0.2 + (static_cast<float>(value & kIOAudioChannelPitch) / 16) * 2;
+
+  // sf::Sound::setVolume expects a value between 0 and 100
+  if (volume == kIOAudioChannelVolume0) volume_f = 0;
+  if (volume == kIOAudioChannelVolume25) volume_f = 25;
+  if (volume == kIOAudioChannelVolume50) volume_f = 50;
+  if (volume == kIOAudioChannelVolume100) volume_f = 100;
+
+  // Get the source buffer for the sound
+  sf::SoundBuffer* source_buffer = nullptr;
+  if (wave == kIOAudioChannelWaveSine) source_buffer = &this->audio_buffer_sine;
+  if (wave == kIOAudioChannelWaveSquare) source_buffer = &this->audio_buffer_square;
+  if (wave == kIOAudioChannelWaveSaw) source_buffer = &this->audio_buffer_saw;
+  if (wave == kIOAudioChannelWaveTriangle) source_buffer = &this->audio_buffer_triangle;
+
+  // Get the target audio channel
+  sf::Sound* target_channel = nullptr;
+  if (address == kIOAudioChannel1) target_channel = &this->audio_sound1;
+  if (address == kIOAudioChannel2) target_channel = &this->audio_sound2;
+  if (address == kIOAudioChannel3) target_channel = &this->audio_sound3;
+
+  std::cout << "pitch: " << pitch << std::endl;
+  std::cout << "volume_f: " << volume_f << std::endl;
+  std::cout << "wave function: " << static_cast<unsigned int>(wave) << std::endl;
+
+  // Update sound parameters
+  //target_channel->stop();
+  target_channel->setPitch(pitch);
+  target_channel->setVolume(volume_f);
+  target_channel->setBuffer(*source_buffer);
+  target_channel->setLoop(true);
+  if (volume != 0) {
+    std::cout << "playing sound" << std::endl;
+    target_channel->play();
+  } else {
+    target_channel->pause();
+  }
 }
 
 void IOChip::draw_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {

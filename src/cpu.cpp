@@ -263,6 +263,9 @@ void CPU::cycle() {
   // Since this emulator isn't really performance focused, this is okay.
   std::this_thread::sleep_for(std::chrono::microseconds(1));
   uint8_t opcode = this->bus->read_byte(this->PC++);
+  //std::cout << std::hex;
+  //std::cout << "0x" << this->PC - 1 << ": " << static_cast<unsigned int>(opcode) << std::endl;
+  //std::cout << std::dec;
   Instruction instruction = this->dispatch_table[opcode];
   this->exec_instruction(instruction);
 }
@@ -306,14 +309,13 @@ void CPU::dump_state(std::ostream& out) {
   out << std::hex;
 
   out << "6502 Microcontroller at " << this << '\n';
-  out << '\n';
   out << "Bus: " << this->bus << '\n';
   out << "Accumulator: " << static_cast<unsigned int>(this->A) << '\n';
   out << "Index X: " << static_cast<unsigned int>(this->X) << '\n';
   out << "Index Y: " << static_cast<unsigned int>(this->Y) << '\n';
   out << "Stack Pointer: " << static_cast<unsigned int>(this->SP) << '\n';
   out << "Program Counter: " << static_cast<unsigned int>(this->PC) << '\n';
-  out << "Status Register: " << static_cast<unsigned int>(this->STATUS) << '\n';
+  out << "Status Register: " << static_cast<unsigned int>(this->STATUS) << '\n' << '\n';
 
   out << std::dec;
 }
@@ -438,7 +440,7 @@ void CPU::op_adc(uint16_t src) {
 
 void CPU::op_and(uint16_t src) {
   uint8_t operand = this->bus->read_byte(src);
-  uint8_t res = operand & this->A;
+  uint8_t res = this->A & operand;
   this->S = res & 0x80;
   this->Z = !res;
   this->A = res;
