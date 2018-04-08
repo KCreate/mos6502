@@ -13,8 +13,8 @@
 
 ; method code of the draw rectangle IOChip intrinsic
 .def DRAW_RECTANGLE 0x00
-.def BRUSH_SET_BODY 0x03
-.def BRUSH_SET_OUTLINE 0x04
+.def BRUSH_SET_BODY 0x80
+.def BRUSH_SET_OUTLINE 0x81
 
 ; color codes
 .def RED #$E0
