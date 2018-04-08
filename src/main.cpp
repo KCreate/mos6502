@@ -60,33 +60,46 @@ int main() {
   //
   // Example used: vram_simple_copy.asm
   uint8_t code[] = {
-                          // 4910:  .RST
-    0xA9, 0xC8,           //    lda #$C8
-    0x8D, 0x08, 0x49,     //    sta 0x4908
-    0xA9, 0x32,           //    lda #$C8
-    0x8D, 0x06, 0x49,     //    sta 0x4906
-                          //
-                          // 491A:  .LOOP
-    0xEA,                 //    nop
-    0x4C, 0x1A, 0x49,     //    jmp .LOOP
-                          //
-                          // 491E:  .IRQ
-    0xAD, 0x08, 0x49,     //    lda 0x4908
-    0xAA,                 //    tax
-    0x29, 0xCF,           //    and #$CF
-    0x8D, 0x00, 0x00,     //    sta TMP
-    0x8A,                 //    txa
-    0x69, 0x10,           //    adc #$10
-    0x29, 0x30,           //    and #$30
-    0x6D, 0x00, 0x00,     //    adc TMP
-    0x8D, 0x08, 0x49,     //    sta 0x4908
-    0x40                  //    rti
+                            // 4910: .RST
+    0xA9, 0xC0,             //    lda #$C0
+    0x8D, 0x0C, 0x49,       //    sta 0x490C
+    0xA9, 0x80,             //    lda #$80
+    0x8D, 0x0B, 0x49,       //    sta 0x490B
+                            //
+    0xA9, 0x3F,             //    lda #$3F
+    0x8D, 0x0C, 0x49,       //    sta 0x490C
+    0xA9, 0x00,             //    lda #$00
+    0x8D, 0x0D, 0x49,       //    sta 0x490D
+    0xA9, 0x00,             //    lda #$00
+    0x8D, 0x0E, 0x49,       //    sta 0x490E
+    0xA9, 0x23,             //    lda #$23
+    0x8D, 0x0F, 0x49,       //    sta 0x490F
+    0xA9, 0x03,             //    lda #$03
+    0x8D, 0x0B, 0x49,       //    sta 0x490B
+                            //
+    0xA9, 0x03,             //    lda #$03
+    0x8D, 0x0C, 0x49,       //    sta 0x490C
+    0xA9, 0x80,             //    lda #$80
+    0x8D, 0x0B, 0x49,       //    sta 0x490B
+                            //
+    0xA9, 0x00,             //    lda #$3F
+    0x8D, 0x0C, 0x49,       //    sta 0x490C
+    0xA9, 0x00,             //    lda #$00
+    0x8D, 0x0D, 0x49,       //    sta 0x490D
+    0xA9, 0x3F,             //    lda #$00
+    0x8D, 0x0E, 0x49,       //    sta 0x490E
+    0xA9, 0x23,             //    lda #$23
+    0x8D, 0x0F, 0x49,       //    sta 0x490F
+    0xA9, 0x03,             //    lda #$03
+    0x8D, 0x0B, 0x49,       //    sta 0x490B
+                            //
+    0xFF                    //    halt
   };
   std::memcpy(rom.get_buffer(), code, sizeof(code));
 
   // Hook up IRQ interrupt handler
-  rom.get_buffer()[kVecIRQ - kAddrROM] = 0x1E;
-  rom.get_buffer()[kVecIRQ - kAddrROM + 1] = 0x49;
+  rom.get_buffer()[kVecIRQ - kAddrROM] = 0xff;
+  rom.get_buffer()[kVecIRQ - kAddrROM + 1] = 0xff;
 
   CPU cpu(&bus);
   bus.attach_cpu(&cpu);

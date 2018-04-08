@@ -26,8 +26,8 @@
  */
 
 #include <chrono>
-#include <cstring>
 #include <cmath>
+#include <cstring>
 
 #ifdef LINUX
 #include <X11/Xlib.h>
@@ -329,7 +329,6 @@ uint8_t IOChip::read(uint16_t address) {
 }
 
 void IOChip::update_audio(uint16_t address, uint8_t value) {
-
   // Decode parameters
   uint8_t volume = (value & kIOAudioChannelVolume) >> 6;
   float volume_f = 0;
@@ -337,30 +336,41 @@ void IOChip::update_audio(uint16_t address, uint8_t value) {
   float pitch = 0.2 + (static_cast<float>(value & kIOAudioChannelPitch) / 16) * 2;
 
   // sf::Sound::setVolume expects a value between 0 and 100
-  if (volume == kIOAudioChannelVolume0) volume_f = 0;
-  if (volume == kIOAudioChannelVolume25) volume_f = 25;
-  if (volume == kIOAudioChannelVolume50) volume_f = 50;
-  if (volume == kIOAudioChannelVolume100) volume_f = 100;
+  if (volume == kIOAudioChannelVolume0)
+    volume_f = 0;
+  if (volume == kIOAudioChannelVolume25)
+    volume_f = 25;
+  if (volume == kIOAudioChannelVolume50)
+    volume_f = 50;
+  if (volume == kIOAudioChannelVolume100)
+    volume_f = 100;
 
   // Get the source buffer for the sound
   sf::SoundBuffer* source_buffer = nullptr;
-  if (wave == kIOAudioChannelWaveSine) source_buffer = &this->audio_buffer_sine;
-  if (wave == kIOAudioChannelWaveSquare) source_buffer = &this->audio_buffer_square;
-  if (wave == kIOAudioChannelWaveSaw) source_buffer = &this->audio_buffer_saw;
-  if (wave == kIOAudioChannelWaveTriangle) source_buffer = &this->audio_buffer_triangle;
+  if (wave == kIOAudioChannelWaveSine)
+    source_buffer = &this->audio_buffer_sine;
+  if (wave == kIOAudioChannelWaveSquare)
+    source_buffer = &this->audio_buffer_square;
+  if (wave == kIOAudioChannelWaveSaw)
+    source_buffer = &this->audio_buffer_saw;
+  if (wave == kIOAudioChannelWaveTriangle)
+    source_buffer = &this->audio_buffer_triangle;
 
   // Get the target audio channel
   sf::Sound* target_channel = nullptr;
-  if (address == kIOAudioChannel1) target_channel = &this->audio_sound1;
-  if (address == kIOAudioChannel2) target_channel = &this->audio_sound2;
-  if (address == kIOAudioChannel3) target_channel = &this->audio_sound3;
+  if (address == kIOAudioChannel1)
+    target_channel = &this->audio_sound1;
+  if (address == kIOAudioChannel2)
+    target_channel = &this->audio_sound2;
+  if (address == kIOAudioChannel3)
+    target_channel = &this->audio_sound3;
 
   std::cout << "pitch: " << pitch << std::endl;
   std::cout << "volume_f: " << volume_f << std::endl;
   std::cout << "wave function: " << static_cast<unsigned int>(wave) << std::endl;
 
   // Update sound parameters
-  //target_channel->stop();
+  // target_channel->stop();
   target_channel->setPitch(pitch);
   target_channel->setVolume(volume_f);
   target_channel->setBuffer(*source_buffer);
@@ -417,36 +427,47 @@ void IOChip::draw_square(uint8_t x, uint8_t y, uint8_t s) {
 void IOChip::draw_dot(uint8_t x, uint8_t y) {
   bool portrait_mode = this->control & kIOControlOrientation;
   uint8_t screen_width = portrait_mode ? kIOVideoHeight : kIOVideoWidth;
-  this->vram[x + y * screen_width] = this->brush_body_color;
+  uint16_t offset = x + y * screen_width;
+  if (offset >= 0x900)
+    return;
+  this->vram[offset] = this->brush_body_color;
 }
 
 void IOChip::draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2) {
-  bool portrait_mode = this->control & kIOControlOrientation;
-  uint8_t screen_width = portrait_mode ? kIOVideoHeight : kIOVideoWidth;
+  // Bresenham's line algorithm
+  //
+  // Source: http://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C.2B.2B
+  const bool steep = (std::abs(y2 - y1) > std::abs(x2 - x1));
+  if (steep) {
+    std::swap(x1, y1);
+    std::swap(x2, y2);
+  }
 
-  // Sort the input coordinates
-  if (x1 > x2 || y1 > y2) {
+  if (x1 > x2) {
     std::swap(x1, x2);
     std::swap(y1, y2);
   }
 
-  // Check if we have to draw a straight non-diagonal line
-  if (x1 == x2) {
-    uint8_t dy = y2 - y1;
-    while (dy--) {
-      this->vram[x1 + dy * screen_width] = this->brush_body_color;
-    }
-    return;
-  } else if (y1 == y2) {
-    uint8_t dx = x2 - x1;
-    while (dx--) {
-      this->vram[dx + y1 * screen_width] = this->brush_body_color;
-    }
-    return;
-  }
+  const float dx = x2 - x1;
+  const float dy = std::abs(y2 - y1);
 
-  // TODO: Implement diagonal line drawing
-  std::cout << "diagonal line drawing is not implemented yet" << std::endl;
+  float error = dx / 2;
+  const int ystep = (y1 < y2) ? 1 : -1;
+  int y = y1;
+
+  for (int x = x1; x < x2; x++) {
+    if (steep) {
+      this->draw_dot(y, x);
+    } else {
+      this->draw_dot(x, y);
+    }
+
+    error -= dy;
+    if (error < 0) {
+      y += ystep;
+      error += dx;
+    }
+  }
 }
 
 }  // namespace M6502
