@@ -221,6 +221,10 @@ void IOChip::thread_drawing() {
         this->draw_dot(instruction.arg1, instruction.arg2);
         break;
       }
+      case kIODrawLine: {
+        this->draw_line(instruction.arg1, instruction.arg2, instruction.arg3, instruction.arg4);
+        break;
+      }
       case kIOBrushSetBody: {
         this->brush_body_color = instruction.arg1;
         break;
@@ -414,6 +418,35 @@ void IOChip::draw_dot(uint8_t x, uint8_t y) {
   bool portrait_mode = this->control & kIOControlOrientation;
   uint8_t screen_width = portrait_mode ? kIOVideoHeight : kIOVideoWidth;
   this->vram[x + y * screen_width] = this->brush_body_color;
+}
+
+void IOChip::draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2) {
+  bool portrait_mode = this->control & kIOControlOrientation;
+  uint8_t screen_width = portrait_mode ? kIOVideoHeight : kIOVideoWidth;
+
+  // Sort the input coordinates
+  if (x1 > x2 || y1 > y2) {
+    std::swap(x1, x2);
+    std::swap(y1, y2);
+  }
+
+  // Check if we have to draw a straight non-diagonal line
+  if (x1 == x2) {
+    uint8_t dy = y2 - y1;
+    while (dy--) {
+      this->vram[x1 + dy * screen_width] = this->brush_body_color;
+    }
+    return;
+  } else if (y1 == y2) {
+    uint8_t dx = x2 - x1;
+    while (dx--) {
+      this->vram[dx + y1 * screen_width] = this->brush_body_color;
+    }
+    return;
+  }
+
+  // TODO: Implement diagonal line drawing
+  std::cout << "diagonal line drawing is not implemented yet" << std::endl;
 }
 
 }  // namespace M6502

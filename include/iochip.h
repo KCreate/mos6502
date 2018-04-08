@@ -184,6 +184,7 @@ static constexpr double kIOAudioSampleIncrement = 440.0 / 44100;
 //  io_draw_rectangle(x, y, w, h)
 //  io_draw_square(x, y, s)
 //  io_draw_dot(x, y) - Uses the body color
+//  io_draw_line(x1, y2, x2, y2)
 //
 // Color
 //  io_brush_set_body(v)
@@ -198,8 +199,9 @@ static constexpr uint16_t kIODrawArg4 = 0x90F;
 static constexpr uint8_t kIODrawRectangle = 0x00;
 static constexpr uint8_t kIODrawSquare = 0x01;
 static constexpr uint8_t kIODrawDot = 0x02;
-static constexpr uint8_t kIOBrushSetBody = 0x03;
-static constexpr uint8_t kIOBrushSetOutline = 0x04;
+static constexpr uint8_t kIODrawLine = 0x03;
+static constexpr uint8_t kIOBrushSetBody = 0x80;
+static constexpr uint8_t kIOBrushSetOutline = 0x81;
 
 // Interrupt event codes
 //
@@ -357,6 +359,7 @@ private:
   void draw_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
   void draw_square(uint8_t x, uint8_t y, uint8_t s);
   void draw_dot(uint8_t x, uint8_t y);
+  void draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2);
 };
 
 }  // namespace M6502
