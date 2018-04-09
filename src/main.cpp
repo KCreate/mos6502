@@ -53,14 +53,14 @@ int main() {
   bus.attach_rom(&rom);
 
   // Set the reset vector
-  rom.get_buffer()[kVecRES - kAddrROM] = 0x10;
+  rom.get_buffer()[kVecRES - kAddrROM] = 0x20;
   rom.get_buffer()[kVecRES - kAddrROM + 1] = 0x49;
 
   // Flash some code into the ROM for the CPU to execute
   //
   // Example used: vram_simple_copy.asm
   uint8_t code[] = {
-                            // 4910: .RST
+                            // 4920: .RST
     0xA9, 0xD1,             //    lda #$D1
     0x8D, 0x08, 0x49,       //    sta 0x4908
     0xA9, 0x18,             //    lda #$18
@@ -68,11 +68,11 @@ int main() {
     0xA9, 0x16,             //    lda #$16
     0x8D, 0x06, 0x49,       //    sta 0x4906
                             //
-                            // 491E: .LOOP
+                            // 492E: .LOOP
     0xEA,                   //    nop
-    0x4C, 0x1E, 0x49,       //    jmp .LOOP
+    0x4C, 0x2E, 0x49,       //    jmp .LOOP
                             //
-                            // 4922: .IRQ
+                            // 4932: .IRQ
     0xAD, 0x08, 0x49,       //    lda 0x4908
     0xA6, 0x00,             //    ldx TOGGLE    ; address 0x00
     0x85, 0x00,             //    sta TOGGLE    ; address 0x00
@@ -83,7 +83,7 @@ int main() {
   std::memcpy(rom.get_buffer(), code, sizeof(code));
 
   // Hook up IRQ interrupt handler
-  rom.get_buffer()[kVecIRQ - kAddrROM] = 0x22;
+  rom.get_buffer()[kVecIRQ - kAddrROM] = 0x32;
   rom.get_buffer()[kVecIRQ - kAddrROM + 1] = 0x49;
 
   CPU cpu(&bus);

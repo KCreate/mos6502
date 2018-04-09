@@ -203,6 +203,46 @@ static constexpr uint8_t kIODrawLine = 0x03;
 static constexpr uint8_t kIOBrushSetBody = 0x80;
 static constexpr uint8_t kIOBrushSetOutline = 0x81;
 
+// Writing to this memory locations will start a timer, which fires an IRQ interrupt
+// after the specified amount of time. The value inside the two bytes is read as a 16-bit
+// value. The value is multiplied with 10, resulting in the amount of milliseconds that
+// should pass. Writing to the Lo byte will trigger the timer. Writing to the Hi byte
+// only has no effect.
+//
+// A timer cannot be cancelled once activated.
+//
+// timer: 00000000
+//        ^
+//        +- Value in 10ms
+static constexpr uint16_t kIOTimer1Lo = 0x910;
+static constexpr uint16_t kIOTimer1Hi = 0x911;
+static constexpr uint16_t kIOTimer2Lo = 0x912;
+static constexpr uint16_t kIOTimer2Hi = 0x913;
+
+// Similar to the timers mentioned above, these memory locations can be used to fire
+// a timer. Unlike the regular timers, these will fire in 1 second intervals, decrementing
+// the value stored in memory until it has reached 0.
+//
+// A counter can be cancelled while running by writing 0 to memory.
+//
+// counter: 00000000
+//          ^
+//          +- Value in seconds
+static constexpr uint16_t kIOCounter1 = 0x914;
+static constexpr uint16_t kIOCounter2 = 0x915;
+
+// Reserved for future expansion
+static constexpr uint16_t kIOReserved7 = 0x916;
+static constexpr uint16_t kIOReserved8 = 0x917;
+static constexpr uint16_t kIOReserved9 = 0x918;
+static constexpr uint16_t kIOReserved10 = 0x919;
+static constexpr uint16_t kIOReserved11 = 0x91A;
+static constexpr uint16_t kIOReserved12 = 0x91B;
+static constexpr uint16_t kIOReserved13 = 0x91C;
+static constexpr uint16_t kIOReserved14 = 0x91D;
+static constexpr uint16_t kIOReserved15 = 0x91E;
+static constexpr uint16_t kIOReserved16 = 0x91F;
+
 // Interrupt event codes
 //
 // When the IO chip interrupts the CPU and requests servicing, it puts an event type into the respective memory
@@ -215,6 +255,10 @@ static constexpr uint8_t kIOEventMousedown = 0x04;
 static constexpr uint8_t kIOEventMouseup = 0x05;
 static constexpr uint8_t kIOEventClock1 = 0x06;
 static constexpr uint8_t kIOEventClock2 = 0x07;
+static constexpr uint8_t kIOEventTimer1 = 0x08;
+static constexpr uint8_t kIOEventTimer2 = 0x09;
+static constexpr uint8_t kIOEventCounter1 = 0x0A;
+static constexpr uint8_t kIOEventCounter2 = 0x0B;
 
 // Misc. IO control flags
 //
@@ -330,14 +374,11 @@ private:
   // Update one of the currently playing sounds
   void update_audio(uint16_t address, uint8_t value);
 
-  // Starts a clock thread using a byte at a given offset
   void thread_clock(uint16_t clock_offset);
-
-  // Stars a rendering thread using a sf::RenderWindow*
   void thread_render();
-
-  // Drawing thread
   void thread_drawing();
+  void thread_timer(uint16_t address);
+  void thread_counter(uint16_t address);
 
   union {
     uint8_t memory[0x910];

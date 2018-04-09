@@ -325,6 +325,16 @@ void IOChip::write(uint16_t address, uint8_t value) {
       this->update_audio(address, value);
       break;
     }
+    case kIOTimer1Lo:
+    case kIOTimer2Lo: {
+      this->worker_threads.push_back(std::thread(&IOChip::thread_timer, this, address));
+      break;
+    }
+    case kIOCounter1:
+    case kIOCounter2: {
+      this->worker_threads.push_back(std::thread(&IOChip::thread_counter, this, address));
+      break;
+    }
   }
 }
 
@@ -381,6 +391,29 @@ void IOChip::update_audio(uint16_t address, uint8_t value) {
   }
 
   *target_cache = decoder;
+}
+
+void IOChip::thread_timer(uint16_t address) {
+  uint8_t lo = this->memory[address];
+  uint8_t hi = this->memory[address + 1];
+  uint32_t timer_milliseconds = ((hi << 8) + lo) * 10;
+  std::this_thread::sleep_for(std::chrono::milliseconds(timer_milliseconds));
+  if (!this->shutdown) {
+    uint8_t event_type = address == kIOTimer1Lo ? kIOEventTimer1 : kIOEventTimer2;
+    this->memory[kIOEventType] = event_type;
+    this->bus->int_irq();
+  }
+}
+
+void IOChip::thread_counter(uint16_t address) {
+  uint8_t seconds = this->memory[address];
+  while (!this->shutdown && seconds) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    uint8_t event_type = address == kIOCounter1 ? kIOEventCounter1 : kIOEventCounter2;
+    this->memory[kIOEventType] = event_type;
+    this->bus->int_irq();
+    seconds = this->memory[address];
+  }
 }
 
 void IOChip::draw_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
