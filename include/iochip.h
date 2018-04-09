@@ -25,9 +25,9 @@
  * SOFTWARE.
  */
 
+#include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
-#include <SFML/Audio.hpp>
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
@@ -75,8 +75,8 @@ namespace M6502 {
 static std::string kIOVideoTitle = "6502 Microcontroller";
 static constexpr size_t kIOVideoWidth = 64;
 static constexpr size_t kIOVideoHeight = 36;
-static constexpr size_t kIOVideoScaleWidth = 7;
-static constexpr size_t kIOVideoScaleHeight = 7;
+static constexpr size_t kIOVideoScaleWidth = 15;
+static constexpr size_t kIOVideoScaleHeight = 15;
 static constexpr size_t kIOVideoModeWidth = kIOVideoWidth * kIOVideoScaleWidth;
 static constexpr size_t kIOVideoModeHeight = kIOVideoHeight * kIOVideoScaleHeight;
 static constexpr size_t kIOVRAMSize = kIOVideoWidth * kIOVideoHeight;
@@ -269,6 +269,40 @@ struct DrawInstruction {
   uint8_t arg4;
 };
 
+// Decodes the audio channel bytes into its components
+class AudioChannelSettingsDecoder {
+public:
+  float volume;
+  float pitch;
+  uint8_t wave_function;
+
+  AudioChannelSettingsDecoder(uint8_t data = 0x00) {
+    this->update(data);
+  }
+
+  AudioChannelSettingsDecoder(const AudioChannelSettingsDecoder& o)
+      : volume(o.volume), pitch(o.pitch), wave_function(o.wave_function) {
+  }
+
+  void update(uint8_t data = 0x00) {
+    uint8_t volume_raw = (data & kIOAudioChannelVolume) >> 6;
+    uint8_t wave_raw = (data & kIOAudioChannelWave) >> 4;
+    uint8_t pitch_raw = data & kIOAudioChannelPitch;
+
+    this->pitch = 0.2 + (static_cast<float>(pitch_raw) / 16) * 2;
+    this->wave_function = wave_raw;
+
+    if (volume_raw == kIOAudioChannelVolume0)
+      this->volume = 0;
+    if (volume_raw == kIOAudioChannelVolume25)
+      this->volume = 25;
+    if (volume_raw == kIOAudioChannelVolume50)
+      this->volume = 50;
+    if (volume_raw == kIOAudioChannelVolume100)
+      this->volume = 100;
+  }
+};
+
 class IOChip : public BusDevice {
 public:
   IOChip(uint16_t maddr);
@@ -289,6 +323,9 @@ private:
   sf::Sound audio_sound1;
   sf::Sound audio_sound2;
   sf::Sound audio_sound3;
+  AudioChannelSettingsDecoder audio_cache1;
+  AudioChannelSettingsDecoder audio_cache2;
+  AudioChannelSettingsDecoder audio_cache3;
 
   // Update one of the currently playing sounds
   void update_audio(uint16_t address, uint8_t value);

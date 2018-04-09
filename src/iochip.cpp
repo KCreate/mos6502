@@ -83,7 +83,7 @@ void IOChip::start() {
 
   // Start the audio, clock and rendering threads
   this->worker_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock1));
-  // this->worker_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock2));
+  this->worker_threads.push_back(std::thread(&IOChip::thread_clock, this, kIOClock2));
   this->drawing_thread = std::thread(&IOChip::thread_drawing, this);
 
   // Create the window and the thread which handles all the drawing
@@ -172,6 +172,10 @@ void IOChip::load_audio_buffers() {
   //       Right now we just load these buffers with square wave data
   this->audio_buffer_saw.loadFromSamples(raw, kIOAudioSamples, 1, kIOAudioSampleRate);
   this->audio_buffer_triangle.loadFromSamples(raw, kIOAudioSamples, 1, kIOAudioSampleRate);
+
+  this->audio_sound1.setLoop(true);
+  this->audio_sound2.setLoop(true);
+  this->audio_sound3.setLoop(true);
 }
 
 void IOChip::thread_clock(uint16_t source) {
@@ -329,58 +333,54 @@ uint8_t IOChip::read(uint16_t address) {
 }
 
 void IOChip::update_audio(uint16_t address, uint8_t value) {
-  // Decode parameters
-  uint8_t volume = (value & kIOAudioChannelVolume) >> 6;
-  float volume_f = 0;
-  uint8_t wave = (value & kIOAudioChannelWave) >> 4;
-  float pitch = 0.2 + (static_cast<float>(value & kIOAudioChannelPitch) / 16) * 2;
-
-  // sf::Sound::setVolume expects a value between 0 and 100
-  if (volume == kIOAudioChannelVolume0)
-    volume_f = 0;
-  if (volume == kIOAudioChannelVolume25)
-    volume_f = 25;
-  if (volume == kIOAudioChannelVolume50)
-    volume_f = 50;
-  if (volume == kIOAudioChannelVolume100)
-    volume_f = 100;
+  // Decode
+  AudioChannelSettingsDecoder decoder(value);
 
   // Get the source buffer for the sound
   sf::SoundBuffer* source_buffer = nullptr;
-  if (wave == kIOAudioChannelWaveSine)
+  if (decoder.wave_function == kIOAudioChannelWaveSine)
     source_buffer = &this->audio_buffer_sine;
-  if (wave == kIOAudioChannelWaveSquare)
+  if (decoder.wave_function == kIOAudioChannelWaveSquare)
     source_buffer = &this->audio_buffer_square;
-  if (wave == kIOAudioChannelWaveSaw)
+  if (decoder.wave_function == kIOAudioChannelWaveSaw)
     source_buffer = &this->audio_buffer_saw;
-  if (wave == kIOAudioChannelWaveTriangle)
+  if (decoder.wave_function == kIOAudioChannelWaveTriangle)
     source_buffer = &this->audio_buffer_triangle;
 
   // Get the target audio channel
   sf::Sound* target_channel = nullptr;
-  if (address == kIOAudioChannel1)
+  AudioChannelSettingsDecoder* target_cache = nullptr;
+  if (address == kIOAudioChannel1) {
     target_channel = &this->audio_sound1;
-  if (address == kIOAudioChannel2)
-    target_channel = &this->audio_sound2;
-  if (address == kIOAudioChannel3)
-    target_channel = &this->audio_sound3;
-
-  std::cout << "pitch: " << pitch << std::endl;
-  std::cout << "volume_f: " << volume_f << std::endl;
-  std::cout << "wave function: " << static_cast<unsigned int>(wave) << std::endl;
-
-  // Update sound parameters
-  // target_channel->stop();
-  target_channel->setPitch(pitch);
-  target_channel->setVolume(volume_f);
-  target_channel->setBuffer(*source_buffer);
-  target_channel->setLoop(true);
-  if (volume != 0) {
-    std::cout << "playing sound" << std::endl;
-    target_channel->play();
-  } else {
-    target_channel->pause();
+    target_cache = &this->audio_cache1;
   }
+  if (address == kIOAudioChannel2) {
+    target_channel = &this->audio_sound2;
+    target_cache = &this->audio_cache1;
+  }
+  if (address == kIOAudioChannel3) {
+    target_channel = &this->audio_sound3;
+    target_cache = &this->audio_cache1;
+  }
+
+  // Update the audio channel
+  if (decoder.volume != target_cache->volume) {
+    if (decoder.volume == 0) {
+      target_channel->pause();
+    }
+    target_channel->setVolume(decoder.volume);
+  }
+  if (decoder.pitch != target_cache->pitch) {
+    target_channel->setPitch(decoder.pitch);
+  }
+  if (decoder.wave_function != target_cache->wave_function) {
+    target_channel->setBuffer(*source_buffer);
+  }
+  if (decoder.volume != 0) {
+    target_channel->play();
+  }
+
+  *target_cache = decoder;
 }
 
 void IOChip::draw_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
