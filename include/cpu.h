@@ -25,9 +25,11 @@
  * SOFTWARE.
  */
 
-#include <cstdint>
 #include <atomic>
+#include <condition_variable>
+#include <cstdint>
 #include <iostream>  // for std::ostream
+#include <mutex>
 
 #include "bus.h"
 
@@ -164,10 +166,15 @@ public:
 
   // Different flag for other threads to set to signal the CPU
   // that an interrupt occured.
+  //
+  // These variables are used during regular operation of the CPU.
+  // If a WAI instruction occurs, we use the condition variables
+  // declared below to handle interrupts.
   std::atomic<bool> int_irq;
-  std::atomic<bool> int_brk;
   std::atomic<bool> int_nmi;
   std::atomic<bool> int_res;
+  std::condition_variable cv_int;
+  std::mutex mutex_int;
 
   // Methods which handle different interrupts
   void handle_irq();

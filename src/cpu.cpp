@@ -52,7 +52,6 @@ CPU::CPU(Bus* b) : bus(b) {
   this->illegal_opcode = false;
   this->shutdown = false;
   this->int_irq = false;
-  this->int_brk = false;
   this->int_nmi = false;
   this->int_res = false;
 
@@ -63,7 +62,7 @@ CPU::CPU(Bus* b) : bus(b) {
   // 0x00 - 0x1F
   DEFINE_OPCODE(0x00, brk, implied);
   DEFINE_OPCODE(0x01, ora, pre_indexed_indirect);
-  DEFINE_OPCODE(0x02, wai, implied);  // custom opcode
+  DEFINE_OPCODE(0x02, wai, implied); // Opcode from the 65C02
   DEFINE_OPCODE(0x05, ora, absolute_zero);
   DEFINE_OPCODE(0x06, asl, absolute_zero);
   DEFINE_OPCODE(0x08, php, implied);
@@ -279,7 +278,6 @@ void CPU::handle_irq() {
 }
 
 void CPU::handle_brk() {
-  this->int_brk = false;
   this->stack_push_word(this->PC);
   this->stack_push_byte(this->STATUS | kMaskBreak);
   this->I = true;
@@ -838,9 +836,25 @@ void CPU::op_tya(uint16_t) {
 }
 
 void CPU::op_wai(uint16_t) {
-  this->PC++;
+  std::unique_lock<std::mutex> lk(this->mutex_int);
+  this->cv_int.wait(lk, [&] {
+    return this->int_irq || this->int_nmi || this->int_res;
+  });
 
-  // TODO: Implement this
+  if (this->int_nmi) {
+    this->handle_nmi();
+  }
+
+  if (this->int_res) {
+    this->handle_res();
+  }
+
+  // If interrupts are disabled, we just continue with the next instruction
+  if (!this->I) {
+    if (this->int_irq) {
+      this->handle_irq();
+    }
+  }
 }
 
 }  // namespace M6502

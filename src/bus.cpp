@@ -84,14 +84,17 @@ void Bus::attach_rom(BusDevice* dev) {
 
 void Bus::int_irq() {
   this->cpu->int_irq = true;
+  this->cpu->cv_int.notify_one();
 }
 
 void Bus::int_nmi() {
   this->cpu->int_nmi = true;
+  this->cpu->cv_int.notify_one();
 }
 
 void Bus::int_res() {
   this->cpu->int_res = true;
+  this->cpu->cv_int.notify_one();
 }
 
 BusDevice* Bus::resolve_address_to_device(uint16_t address) {
