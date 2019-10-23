@@ -262,9 +262,9 @@ void CPU::cycle() {
   // Since this emulator isn't really performance focused, this is okay.
   std::this_thread::sleep_for(std::chrono::microseconds(1));
   uint8_t opcode = this->bus->read_byte(this->PC++);
-  //std::cout << std::hex;
-  //std::cout << "0x" << this->PC - 1 << ": " << static_cast<unsigned int>(opcode) << std::endl;
-  //std::cout << std::dec;
+  std::cout << std::hex;
+  std::cout << "0x" << this->PC - 1 << ": " << static_cast<unsigned int>(opcode) << std::endl;
+  std::cout << std::dec;
   Instruction instruction = this->dispatch_table[opcode];
   this->exec_instruction(instruction);
 }

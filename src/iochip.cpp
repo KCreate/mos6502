@@ -467,6 +467,13 @@ void IOChip::draw_dot(uint8_t x, uint8_t y) {
 }
 
 void IOChip::draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2) {
+
+  //uint32_t x1_u32 = x1;
+  //uint32_t y1_u32 = y1;
+  //uint32_t x2_u32 = x2;
+  //uint32_t y2_u32 = y2;
+  //std::cout << "drawing (" << x1_u32 << ", " << y1_u32 << ") to (" << x2_u32 << ", " << y2_u32 << ")\n";
+
   // Bresenham's line algorithm
   //
   // Source: http://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C.2B.2B

@@ -207,7 +207,7 @@ static constexpr uint8_t kIOBrushSetOutline = 0x81;
 // after the specified amount of time. The value inside the two bytes is read as a 16-bit
 // value. The value is multiplied with 10, resulting in the amount of milliseconds that
 // should pass. Writing to the Lo byte will trigger the timer. Writing to the Hi byte
-// only has no effect.
+// only has no effect. The memory won't be altered at any phase in the timer.
 //
 // A timer cannot be cancelled once activated.
 //
