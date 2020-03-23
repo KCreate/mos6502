@@ -1,6 +1,9 @@
 /*
  * Pong game written for the MOS 6502 Emulator Project
  * Author: Leonard Schütz
+ *
+ * This game was developed as my BMA-Project for the Berufsmaturitätsschule in Zürich.
+ *
  * */
 
 /* Important Addresses */
