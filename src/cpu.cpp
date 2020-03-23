@@ -262,9 +262,6 @@ void CPU::cycle() {
   // Since this emulator isn't really performance focused, this is okay.
   std::this_thread::sleep_for(std::chrono::microseconds(1));
   uint8_t opcode = this->bus->read_byte(this->PC++);
-  std::cout << std::hex;
-  std::cout << "0x" << this->PC - 1 << ": " << static_cast<unsigned int>(opcode) << std::endl;
-  std::cout << std::dec;
   Instruction instruction = this->dispatch_table[opcode];
   this->exec_instruction(instruction);
 }
@@ -275,6 +272,17 @@ void CPU::handle_irq() {
   this->stack_push_byte(this->STATUS);
   this->I = true;
   this->PC = this->bus->read_word(kVecIRQ);
+
+  //std::cout << std::hex;
+  //std::cout << "racket1_pos" << ": " << reinterpret_cast<void*>(this->bus->read_byte(0x00)) << std::endl;
+  //std::cout << "racket2_pos" << ": " << reinterpret_cast<void*>(this->bus->read_byte(0x01)) << std::endl;
+  //std::cout << "score1     " << ": " << reinterpret_cast<void*>(this->bus->read_byte(0x02)) << std::endl;
+  //std::cout << "score2     " << ": " << reinterpret_cast<void*>(this->bus->read_byte(0x03)) << std::endl;
+  //std::cout << "ball_pos_x " << ": " << reinterpret_cast<void*>(this->bus->read_byte(0x04)) << std::endl;
+  //std::cout << "ball_pos_y " << ": " << reinterpret_cast<void*>(this->bus->read_byte(0x05)) << std::endl;
+  //std::cout << "ball_vel_x " << ": " << reinterpret_cast<void*>(this->bus->read_byte(0x06)) << std::endl;
+  //std::cout << "ball_vel_y " << ": " << reinterpret_cast<void*>(this->bus->read_byte(0x07)) << std::endl;
+  //std::cout << std::dec;
 }
 
 void CPU::handle_brk() {
@@ -759,7 +767,7 @@ void CPU::op_rts(uint16_t) {
 
 void CPU::op_sbc(uint16_t src) {
   uint8_t operand = this->bus->read_byte(src);
-  uint16_t tmp = this->A - operand - (this->C ? 0 : 1);
+  uint16_t tmp = this->A - operand - (this->C ? 1 : 0);
   this->S = tmp & 0x80;
   this->Z = !(tmp & 0xFF);
   this->V = ((this->A ^ tmp) & 0x80) && ((this->A ^ operand) & 0x80);

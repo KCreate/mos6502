@@ -75,8 +75,8 @@ namespace M6502 {
 static std::string kIOVideoTitle = "6502 Microcontroller";
 static constexpr size_t kIOVideoWidth = 64;
 static constexpr size_t kIOVideoHeight = 36;
-static constexpr size_t kIOVideoScaleWidth = 15;
-static constexpr size_t kIOVideoScaleHeight = 15;
+static constexpr size_t kIOVideoScaleWidth = 17;
+static constexpr size_t kIOVideoScaleHeight = 17;
 static constexpr size_t kIOVideoModeWidth = kIOVideoWidth * kIOVideoScaleWidth;
 static constexpr size_t kIOVideoModeHeight = kIOVideoHeight * kIOVideoScaleHeight;
 static constexpr size_t kIOVRAMSize = kIOVideoWidth * kIOVideoHeight;

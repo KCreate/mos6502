@@ -27,12 +27,14 @@ CFLAGSPROD := -std=$(CPPSTD) \
 							-ferror-limit=1 \
 							-flto \
 							-ffast-math
-LFLAGS_OSX := -lm -framework sfml-window \
+LFLAGS_OSX := -lm \
+							-F/Library/Frameworks \
+							-framework sfml-window \
 							-framework sfml-audio \
 							-framework sfml-graphics \
 							-framework sfml-system
-LFLAGS_LINUX := -lX11 -lm -lpthread -lsfml-window -lsfml-audio -lsfml-graphics -lsfml-system
-INC := -I libs -I $(INCLUDEDIR)
+LFLAGS_LINUX := -lX11 -lm -lpthread -lsfml -lsfml-window -lsfml-audio -lsfml-graphics -lsfml-system
+INC := -I libs -I $(INCLUDEDIR) -I/usr/local/Cellar/sfml/2.5.1/include -F/Library/Frameworks
 LIB := -lstdc++
 OS = $(shell uname -s)
 
@@ -52,6 +54,7 @@ $(TARGET): $(OBJECTS)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)
 	@mkdir -p $(dir $@)
+	$(call colorecho, " Building $@", 3)
 	@$(CC) $(CFLAGS) $(OPT) $(INC) -c -o $@ $<
 	$(call colorecho, " Built $@", 2)
 
