@@ -1,21 +1,25 @@
-# MOS Technology 6502 Emulator
+![MOS-6502 Emulator](docs/mos-6502.png)
 
-This is an emulator for the original MOS 6502 microcontroller. It is written completly from scratch using C++.
-I am writing this as a school project for the TBZ (Technische Berufsschule Zürich).
+# MOS-6502 Emulator
 
-# Features
+This is a complete emulator of the original MOS Technology 6502 microcontroller from 1975.
+It is written in C++.
 
-TODO
+The emulator works by providing a shared memory bus, to which one can connect devices.
+Each device is allocated an address range, in which it can provide its functionality.
+This allows the program to change audio-output and draw graphics by simply writing a value to a specific address.
 
-# What is not implemented?
+Below you can see the virtual monitor displaying a pong game. The game is implemented completely in the
+6502-Assembly language.
 
-TODO
+![Pong Game](docs/pong-window.png)
 
 # Custom modifications
 
-Some custom opcodes were added to the CPU. Since the original 6502 didn't use all available opcodes,
-those were used. You can see a list of unused 6502 opcodes [here](http://www.oxyron.de/html/opcodes02.html).
-Instead of halting the CPU, they were assigned the following meanings:
+Since the original 6502 didn't use all available opcodes, a custom one was added.
+You can see a list of unused 6502 opcodes [here](http://www.oxyron.de/html/opcodes02.html).
+
+Instead of halting the CPU, it now waits until the next interrupt happens.
 
 - `0x02 - WAI` Same behaviour as on the WDC 65C02.
 
