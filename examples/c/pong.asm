@@ -93,7 +93,7 @@ L_RST:
    cli
 
 L_MAIN_LOOP:
-   nop
+   wai
    jmp L_MAIN_LOOP
 
 L_IRQ:
