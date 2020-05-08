@@ -9,10 +9,11 @@ The emulator works by providing a shared memory bus, to which one can connect de
 Each device is allocated an address range, in which it can provide its functionality.
 This allows the program to change audio-output and draw graphics by simply writing a value to a specific address.
 
-Below you can see the virtual monitor displaying a pong game. The game is implemented completely in the
-6502-Assembly language.
+Below you can see the virtual monitor displaying a pong game.
+[The game is implemented completely in the
+6502-Assembly language.](https://github.com/KCreate/mos6502/blob/master/examples/c/pong.asm)
 
-![Pong Game](docs/pong-window.png)
+<img src="docs/pong-window.gif" alt="Pong Game" width="100%">
 
 # Custom modifications
 
